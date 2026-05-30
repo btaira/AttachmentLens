@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  attachmentlens:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount local directory to persist database
+      - ./data:/app/data
+    environment:
+      # Store database in the volume
+      - DB_PATH=/app/data/posts.db
+    restart: unless-stopped
