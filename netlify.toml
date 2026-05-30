@@ -1,0 +1,14 @@
+[build]
+  command = "pip install -r requirements.txt && echo 'Build complete'"
+  functions = "netlify/functions"
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "none"
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = false
