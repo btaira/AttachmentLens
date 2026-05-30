@@ -49,11 +49,17 @@ This is a personal journaling and research tool inspired by attachment theory fr
 
 ### Prerequisites
 
+**Option 1 (Recommended): Docker**
+- Docker Desktop ([download](https://www.docker.com/products/docker-desktop))
+
+**Option 2: Python**
 - Python 3.8+
 - Flask 3.0+
-- (Optional) Anthropic API key for AI analysis features
 
-### Local Installation
+**Optional:**
+- Anthropic API key for AI analysis features
+
+### Local Installation (Python)
 
 1. **Clone the repository**
    ```bash
@@ -78,6 +84,29 @@ This is a personal journaling and research tool inspired by attachment theory fr
    ```
 
    The app will start at `http://localhost:5000`
+
+### Local Installation (Docker) — Recommended
+
+Fastest way to get started with persistent data:
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/AttachmentLens.git
+cd AttachmentLens
+
+# Start with Docker Compose
+docker-compose up
+```
+
+Visit `http://localhost:5000` — your database will be saved to `./data/posts.db` and persist across restarts.
+
+**Benefits of Docker:**
+- ✅ No Python setup needed
+- ✅ Data persists in `./data/` folder
+- ✅ Isolated environment
+- ✅ One-command startup: `docker-compose up`
+
+See [DOCKER.md](DOCKER.md) for more details.
 
 ### First Time Setup
 
