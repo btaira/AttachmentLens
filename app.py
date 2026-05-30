@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 import sqlite3
 import json
 import re
+import os
 from datetime import datetime
 try:
     import anthropic
@@ -11,7 +12,7 @@ except ImportError:
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
-DB = 'posts.db'
+DB = os.getenv('DB_PATH', 'posts.db')
 
 # ---------------------------------------------------------------------------
 # Attachment-style keyword classifier
@@ -79,6 +80,10 @@ def get_db():
 
 
 def init_db():
+    # Ensure directory exists for database file
+    db_dir = os.path.dirname(DB) or '.'
+    os.makedirs(db_dir, exist_ok=True)
+
     with get_db() as conn:
         conn.execute('''
             CREATE TABLE IF NOT EXISTS posts (
@@ -613,4 +618,4 @@ def delete_analysis(analysis_id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
