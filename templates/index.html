@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .layout { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+  @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } }
+
+  /* Search */
+  .search-bar { display: flex; gap: 10px; margin-bottom: 24px; }
+  .search-bar input {
+    flex: 1; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 15px;
+  }
+  .search-bar input:focus { outline: none; border-color: var(--accent); }
+  .search-bar button { padding: 10px 20px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+  /* Sidebar */
+  .sidebar { position: sticky; top: 20px; align-self: start; }
+  .sidebar .cat-list { list-style: none; }
+  .sidebar .cat-list li { margin-bottom: 2px; }
+  .sidebar .cat-list a {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-radius: 6px; color: var(--text); font-size: 13px;
+    transition: background .15s;
+  }
+  .sidebar .cat-list a:hover { background: var(--surface2); text-decoration: none; }
+  .sidebar .cat-list a.active { background: var(--surface2); color: var(--accent); }
+  .sidebar .cat-list .cnt { font-size: 11px; color: var(--text); }
+
+  /* Latest posts */
+  .latest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 32px; }
+  .post-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: border-color .15s, transform .1s; }
+  .post-card:hover { border-color: var(--accent); transform: translateY(-2px); text-decoration: none; color: var(--text); }
+  .post-card .meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .post-card .date { font-size: 11px; color: var(--text); }
+  .post-card .first-sentence { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; line-height: 1.4; }
+  .post-card .excerpt { font-size: 13px; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; opacity: .8; }
+
+  /* Library table */
+  .library-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  .library-table th { text-align: left; padding: 8px 10px; color: var(--text); font-weight: 600; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .library-table td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: top; overflow: hidden; }
+  .library-table tr:hover td { background: var(--surface2); }
+  .library-table col.col-post    { width: 80%; }
+  .library-table col.col-style   { width: 8%; }
+  .library-table col.col-date    { width: 5%; }
+  .library-table col.col-pop     { width: 4%; }
+  .library-table col.col-status  { width: 7%; }
+  .library-table .excerpt-cell .first-line { font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 3px; white-space: normal; }
+  .library-table .excerpt-cell .rest { font-size: 12px; color: var(--text); opacity: .75; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+
+  /* Popularity */
+  .pop { font-size: 12px; color: var(--healing); white-space: nowrap; }
+  .pop-likes { font-size: 11px; color: var(--avoidant); white-space: nowrap; }
+  .pop-comments { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  /* Sort bar */
+  .sort-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .sort-bar label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .sort-select {
+    padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  .sort-select:focus { outline: none; border-color: var(--accent); }
+
+  /* Favorites */
+  .fav-btn {
+    background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1;
+    padding: 2px 4px; border-radius: 4px; transition: transform .15s;
+  }
+  .fav-btn:hover { transform: scale(1.3); }
+  .fav-section { margin-bottom: 32px; }
+  .fav-group { margin-bottom: 20px; }
+  .fav-group-title { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text); margin-bottom: 8px; opacity: .6; }
+  .fav-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+
+  .flash { background: rgba(93,217,156,.12); border: 1px solid var(--secure); color: var(--secure); border-radius: 6px; padding: 8px 14px; margin-bottom: 16px; font-size: 13px; }
+  .search-result-note { font-size: 13px; color: var(--text); margin-bottom: 12px; opacity: .7; }
+</style>
+
+<div class="container">
+  {% set imported = request.args.get('imported') %}
+  {% if imported %}
+  <div class="flash">✓ Imported {{ imported }} posts ({{ request.args.get('skipped', 0) }} skipped)</div>
+  {% endif %}
+
+  <!-- Search -->
+  <form class="search-bar" action="/" method="get">
+    <input type="text" name="q" value="{{ search or '' }}" placeholder="Search posts…" autocomplete="off">
+    <button type="submit">Search</button>
+    {% if search %}<a href="/" class="btn btn-secondary" style="padding:10px 14px;font-size:14px">✕ Clear</a>{% endif %}
+  </form>
+
+  <!-- Favorites section -->
+  {% if favorites and not search %}
+  <div class="fav-section" id="favorites">
+    <div class="section-title">⭐ Favorites</div>
+    {% set ns = namespace(current_cat='') %}
+    {% for p in favorites %}
+      {% if p.category != ns.current_cat %}
+        {% if ns.current_cat != '' %}</div></div>{% endif %}
+        {% set ns.current_cat = p.category %}
+        {% set cat_key = p.category.split('/')[0].strip().split(' ')[0] %}
+        <div class="fav-group">
+          <div class="fav-group-title"><span class="cat-badge cat-{{ cat_key }}" style="font-size:11px">{{ p.category }}</span></div>
+          <div class="fav-cards">
+      {% endif %}
+      <a href="/post/{{ p.id }}" class="post-card" style="position:relative">
+        <div class="meta">
+          {% if p.date_label %}<span class="date">{{ p.date_label }}</span>{% endif %}
+          {% if p.popularity and p.popularity > 0 %}<span class="pop">👍 {{ p.popularity }}</span>{% endif %}
+        </div>
+        <div class="first-sentence">{{ first_sentence(p.original_text) }}</div>
+        <div class="excerpt">{{ p.original_text[first_sentence(p.original_text)|length:] }}</div>
+        <button class="fav-btn" onclick="event.preventDefault();toggleFav({{ p.id }}, this)" title="Remove favorite" style="position:absolute;top:10px;right:10px">⭐</button>
+      </a>
+    {% endfor %}
+    {% if ns.current_cat != '' %}</div></div>{% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Latest 5 (hidden during search) -->
+  {% if not search %}
+  <div class="section-title">Latest 5 Posts</div>
+  {% if latest %}
+  <div class="latest-grid">
+    {% for p in latest %}
+    <a href="/post/{{ p.id }}" class="post-card">
+      <div class="meta">
+        {% set cat_key = p.category.split('/')[0].strip().split(' ')[0] %}
+        <span class="cat-badge cat-{{ cat_key }}">{{ p.category }}</span>
+        {% if p.is_revised %}<span class="revised-badge">✏ Personalized</span>{% endif %}
+        {% if p.date_label %}<span class="date">{{ p.date_label }}</span>{% endif %}
+      </div>
+      <div class="first-sentence">{{ first_sentence(p.original_text) }}</div>
+      <div class="excerpt">{{ p.original_text[first_sentence(p.original_text)|length:] }}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card" style="margin-bottom:28px;text-align:center;padding:32px">
+    <p style="color:var(--text);margin-bottom:14px">No posts yet.</p>
+    <a href="/import" class="btn btn-primary">Import Posts →</a>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <!-- Main layout -->
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="section-title">Filter by Style</div>
+      <div class="card" style="padding:10px">
+        <ul class="cat-list">
+          <li>
+            <a href="/" class="{{ 'active' if not search }}">
+              All Posts <span class="cnt">{{ total }}</span>
+            </a>
+          </li>
+          {% for c in categories %}
+          <li>
+            {% set cat_key = c.category.split('/')[0].strip().split(' ')[0] %}
+            <a href="/category/{{ c.category|urlencode }}">
+              <span class="cat-badge cat-{{ cat_key }}" style="padding:1px 6px;font-size:10px">{{ c.category }}</span>
+              <span class="cnt">{{ c.cnt }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div style="margin-top:16px">
+        <a href="/import" class="btn btn-primary" style="width:100%;justify-content:center">⟳ Update / Import</a>
+      </div>
+    </div>
+
+    <!-- Library -->
+    <div>
+      {% if search %}
+      <div class="search-result-note">{{ library|length }} result{{ 's' if library|length != 1 }} for "<strong>{{ search }}</strong>"</div>
+      {% else %}
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>All Posts</span>
+        <span style="color:var(--text);font-weight:400;text-transform:none;letter-spacing:0;font-size:12px">{{ library|length }} posts</span>
+      </div>
+      {% endif %}
+
+      <!-- Sort bar -->
+      <div class="sort-bar">
+        <label>Sort by:</label>
+        <select class="sort-select" id="sort-select" onchange="sortTable(this.value)">
+          <option value="popularity">Popularity (likes + comments)</option>
+          <option value="likes">Likes</option>
+          <option value="comments">Comments</option>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden">
+        {% if library %}
+        <table class="library-table" id="library-table">
+          <colgroup>
+            <col style="width:2%">
+            <col style="width:8%">
+            <col style="width:65%">
+            <col style="width:5%">
+            <col style="width:12%">
+            <col style="width:8%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Style</th>
+              <th>Post</th>
+              <th>Date</th>
+              <th style="cursor:pointer" onclick="sortTable('likes')" title="Click to sort by likes">👍 Likes &nbsp;💬 Comments ↕</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="library-tbody">
+            {% for p in library %}
+            <tr style="cursor:pointer" onclick="window.location='/post/{{ p.id }}'"
+                data-popularity="{{ p.popularity or 0 }}"
+                data-likes="{{ p.likes or 0 }}"
+                data-comments="{{ p.comments or 0 }}"
+                data-id="{{ p.id }}">
+              <td onclick="event.stopPropagation()" style="text-align:center;padding:6px 4px">
+                <button class="fav-btn" onclick="toggleFav({{ p.id }}, this)" title="{{ 'Remove favorite' if p.is_favorite else 'Add to favorites' }}">{{ '⭐' if p.is_favorite else '☆' }}</button>
+              </td>
+              <td>
+                {% set cat_key = p.category.split('/')[0].strip().split(' ')[0] %}
+                <span class="cat-badge cat-{{ cat_key }}">{{ p.category }}</span>
+              </td>
+              <td class="excerpt-cell">
+                <div class="first-line">{{ first_sentence(p.original_text) }}</div>
+                {% set rest = p.original_text[first_sentence(p.original_text)|length:].strip() %}
+                {% if rest %}<div class="rest">{{ rest }}</div>{% endif %}
+              </td>
+              <td style="white-space:nowrap;color:var(--text)">{{ p.date_label or '—' }}</td>
+              <td>
+                {% set has_detail = (p.likes and p.likes > 0) or (p.comments and p.comments > 0) %}
+                {% if has_detail %}
+                  <span class="pop-likes">👍 {{ p.likes if p.likes < 1000 else ((p.likes/1000)|round(1)|string + 'k') }}</span>
+                  {% if p.comments and p.comments > 0 %}
+                    <span style="color:var(--border)"> · </span><span class="pop-comments">💬 {{ p.comments if p.comments < 1000 else ((p.comments/1000)|round(1)|string + 'k') }}</span>
+                  {% endif %}
+                {% elif p.popularity and p.popularity > 0 %}
+                  <span class="pop">{{ p.popularity }}</span>
+                {% else %}
+                  <span style="color:var(--muted)">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if p.is_revised %}<span class="revised-badge">✏ Personalized</span>
+                {% else %}<span class="original-badge">Original</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div style="padding:32px;text-align:center;color:var(--text)">No posts found.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+async function toggleFav(id, btn) {
+  const resp = await fetch('/post/' + id + '/favorite', { method: 'POST' });
+  const data = await resp.json();
+  if (data.is_favorite !== undefined) {
+    btn.textContent = data.is_favorite ? '⭐' : '☆';
+    btn.title = data.is_favorite ? 'Remove favorite' : 'Add to favorites';
+    setTimeout(() => location.reload(), 400);
+  }
+}
+
+function sortTable(by) {
+  const tbody = document.getElementById('library-tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort((a, b) => {
+    if (by === 'likes')    return (parseInt(b.dataset.likes) || 0)    - (parseInt(a.dataset.likes) || 0);
+    if (by === 'comments') return (parseInt(b.dataset.comments) || 0) - (parseInt(a.dataset.comments) || 0);
+    if (by === 'newest')   return (parseInt(b.dataset.id) || 0)       - (parseInt(a.dataset.id) || 0);
+    if (by === 'oldest')   return (parseInt(a.dataset.id) || 0)       - (parseInt(b.dataset.id) || 0);
+    // default: popularity
+    return (parseInt(b.dataset.popularity) || 0) - (parseInt(a.dataset.popularity) || 0);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+  localStorage.setItem('libSort', by);
+}
+
+// Restore saved sort preference
+(function() {
+  const saved = localStorage.getItem('libSort');
+  const sel = document.getElementById('sort-select');
+  if (saved && sel) { sel.value = saved; sortTable(saved); }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+
+  .ai-page {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+    font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  /* ── Page header ── */
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 {
+    font-size: 26px; font-weight: 800; color: var(--text);
+    letter-spacing: -.01em; margin-bottom: 4px;
+  }
+  .page-header .sub { font-size: 14px; color: var(--muted); }
+  .page-header .top-row { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  /* ── Cards ── */
+  .card-warm {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 2px 14px rgba(0,0,0,.3);
+  }
+  .card-warm:hover { border-color: rgba(124,106,247,.3); }
+
+  .section-label {
+    font-size: 11px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* ── API Key ── */
+  .api-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .api-input {
+    flex: 1; min-width: 200px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 13px;
+    padding: 9px 14px; font-family: 'Cascadia Code', monospace;
+    transition: border-color .2s;
+  }
+  .api-input:focus { outline: none; border-color: var(--accent); }
+  .key-saved { font-size: 12px; color: var(--secure); font-weight: 700; display: flex; align-items: center; gap: 4px; }
+  .api-hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  .api-hint a { color: var(--accent); }
+
+  /* ── Buttons ── */
+  .btn-warm {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--surface2); color: var(--text);
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: all .2s; font-family: 'Nunito', sans-serif;
+  }
+  .btn-warm:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .btn-warm.danger:hover { border-color: var(--anxious); color: var(--anxious); }
+  .btn-warm.primary {
+    background: linear-gradient(135deg, var(--accent), #9b87ff);
+    border-color: transparent; color: #fff;
+    box-shadow: 0 3px 14px rgba(124,106,247,.35);
+  }
+  .btn-warm.primary:hover { opacity: .9; color: #fff; }
+
+  /* ── BIG analyze button ── */
+  .btn-analyze {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 32px; border-radius: 14px; border: none;
+    background: linear-gradient(135deg, #7c6af7, #9b87ff, #5dd9c4);
+    background-size: 200% 200%; animation: gradshift 4s ease infinite;
+    color: #fff; font-size: 16px; font-weight: 800;
+    cursor: pointer; transition: opacity .2s, transform .15s, box-shadow .2s;
+    box-shadow: 0 4px 20px rgba(124,106,247,.45);
+    font-family: 'Nunito', sans-serif; letter-spacing: .01em;
+  }
+  @keyframes gradshift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .btn-analyze:hover { opacity: .93; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(124,106,247,.55); }
+  .btn-analyze:active { transform: translateY(0); }
+  .btn-analyze:disabled { opacity: .5; cursor: default; transform: none; animation: none; background: var(--surface2); box-shadow: none; }
+
+  /* ── Prompt ── */
+  .prompt-textarea {
+    width: 100%; min-height: 220px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: 'Nunito', sans-serif;
+    font-size: 13.5px; line-height: 1.75; padding: 14px 16px;
+    resize: vertical; transition: border-color .2s;
+  }
+  .prompt-textarea:focus { outline: none; border-color: var(--accent); }
+  .prompt-save-status { font-size: 12px; color: var(--secure); margin-top: 7px; height: 16px; font-weight: 700; }
+
+  /* ── Highlights preview ── */
+  .highlight-pill {
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .highlight-pill:last-child { border-bottom: none; padding-bottom: 0; }
+  .highlight-quote {
+    font-family: 'Lora', Georgia, serif;
+    font-style: italic; font-size: 14px; color: var(--text);
+    line-height: 1.7; border-left: 3px solid var(--accent2);
+    padding-left: 12px;
+  }
+  .highlight-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+  .my-thought-preview { font-size: 12px; color: var(--accent2); margin-top: 2px; }
+
+  /* ── Analyze section ── */
+  .analyze-section {
+    text-align: center; padding: 28px 20px;
+    background: linear-gradient(135deg, rgba(124,106,247,.07), rgba(93,217,196,.07));
+    border: 1.5px solid rgba(124,106,247,.2);
+    border-radius: 16px; margin-bottom: 24px;
+  }
+  .analyze-section .tagline { font-size: 14px; color: var(--muted); margin-top: 12px; }
+
+  /* ── Analysis result (fresh) ── */
+  .analysis-fresh {
+    background: linear-gradient(135deg, rgba(124,106,247,.08), rgba(93,217,196,.06));
+    border: 1.5px solid rgba(124,106,247,.35);
+    border-radius: 16px; padding: 28px 28px 22px; margin-bottom: 24px;
+    display: none;
+  }
+  .analysis-fresh.visible { display: block; }
+  .fresh-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+  .fresh-title { font-size: 15px; font-weight: 800; color: var(--accent); }
+  .fresh-stamp { font-size: 12px; color: var(--muted); }
+
+  .analysis-body {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 15.5px; line-height: 1.85; color: var(--text);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .analysis-body strong { color: var(--accent2); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+
+  /* ── Feedback ── */
+  .feedback-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .feedback-label { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px; }
+  .feedback-hint { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.6; }
+  .feedback-textarea {
+    width: 100%; min-height: 90px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: 'Nunito', sans-serif;
+    font-size: 13.5px; line-height: 1.7; padding: 11px 14px;
+    resize: vertical; transition: border-color .2s;
+  }
+  .feedback-textarea:focus { outline: none; border-color: var(--accent2); }
+  .feedback-save-status { font-size: 11px; color: var(--secure); margin-top: 5px; height: 14px; font-weight: 700; }
+
+  /* ── History ── */
+  .history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+  }
+  .history-search {
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 13px;
+    padding: 8px 14px; width: 260px; max-width: 100%;
+    font-family: 'Nunito', sans-serif; transition: border-color .2s;
+  }
+  .history-search:focus { outline: none; border-color: var(--accent); }
+
+  .history-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 14px;
+    transition: border-color .2s;
+  }
+  .history-card:hover { border-color: rgba(124,106,247,.3); }
+  .history-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .history-date { font-size: 12px; color: var(--muted); font-weight: 700; }
+  .history-card-actions { display: flex; gap: 8px; }
+
+  .history-snippet {
+    font-family: 'Lora', Georgia, serif;
+    font-style: italic; font-size: 13.5px; color: var(--muted);
+    line-height: 1.7; margin-bottom: 10px;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .history-card.expanded .history-snippet {
+    -webkit-line-clamp: unset; overflow: visible;
+  }
+  .history-full {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 14px; line-height: 1.85; color: var(--text);
+    white-space: pre-wrap; word-break: break-word;
+    margin-bottom: 14px; display: none;
+  }
+  .history-card.expanded .history-full { display: block; }
+  .history-card.expanded .history-snippet { display: none; }
+  .history-full strong { color: var(--accent2); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+
+  .expand-btn { font-size: 12px; color: var(--accent); cursor: pointer; background: none; border: none; padding: 0; font-family: 'Nunito', sans-serif; font-weight: 700; }
+  .expand-btn:hover { text-decoration: underline; }
+
+  .history-feedback { font-size: 12px; color: var(--accent2); margin-top: 8px; font-style: italic; }
+  .history-feedback-label { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+
+  /* ── Error / warning ── */
+  .msg-box { border-radius: 10px; padding: 12px 16px; font-size: 13.5px; margin-bottom: 16px; display: none; font-weight: 600; }
+  .msg-box.visible { display: block; }
+  .msg-box.error { background: rgba(247,124,106,.1); border: 1.5px solid var(--anxious); color: var(--anxious); }
+  .msg-box.success { background: rgba(93,217,156,.1); border: 1.5px solid var(--secure); color: var(--secure); }
+  .msg-box.warn { background: rgba(247,162,106,.1); border: 1.5px solid var(--revised-badge); color: var(--revised-badge); font-family: monospace; font-size: 12.5px; }
+
+  .spinner {
+    display: inline-block; width: 18px; height: 18px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin .7s linear infinite; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+  .empty-state .big { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; margin-bottom: 6px; }
+  .empty-state .hint { font-size: 13px; opacity: .7; }
+
+  .divider { height: 1px; background: var(--border); margin: 28px 0; }
+</style>
+
+<div class="ai-page">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="top-row">
+      <div>
+        <h1>🧠 AI Insights</h1>
+        <div class="sub">Your highlights, seen through the eyes of a compassionate therapist</div>
+      </div>
+      <a href="/insights" class="btn-warm">✨ My Highlights</a>
+    </div>
+  </div>
+
+  {% if not has_anthropic %}
+  <div class="msg-box warn visible">
+    The <strong>anthropic</strong> package is not installed. Open your terminal and run:<br>
+    <code>pip install anthropic</code> &nbsp; then restart the Flask server.
+  </div>
+  {% endif %}
+
+  {% if not insights %}
+  <div class="empty-state">
+    <div class="big">💭</div>
+    <p>No highlights saved yet.</p>
+    <div class="hint">Open any post, highlight some text, and tap <strong>Save to Insights</strong>. Then come back here for your analysis!</div>
+  </div>
+  {% else %}
+
+  <!-- API Key -->
+  <div class="card-warm">
+    <div class="section-label">🔑 Anthropic API Key</div>
+    <div class="api-row">
+      <input type="password" class="api-input" id="api-key-input"
+             placeholder="{{ 'Key saved — enter a new one to replace it' if api_key_set else 'Paste your API key here (sk-ant-...)' }}"
+             autocomplete="off">
+      <button class="btn-warm primary" onclick="saveApiKey()">Save Key</button>
+      {% if api_key_set %}
+        <button class="btn-warm danger" onclick="deleteApiKey()" id="delete-key-btn">Delete Key</button>
+        <span class="key-saved">✅ Key saved</span>
+      {% endif %}
+    </div>
+    <div class="api-hint">
+      Get a free key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
+      Your key is saved locally and only sent directly to Anthropic's servers — nowhere else.
+      If you're on a shared computer, use the Delete Key button when done.
+    </div>
+  </div>
+
+  <!-- Therapist Prompt -->
+  <div class="card-warm">
+    <div class="section-label">🗣️ Therapist Prompt <span style="font-size:10px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted);margin-left:4px">Customize the AI's approach — it's your session!</span></div>
+    <textarea class="prompt-textarea" id="therapist-prompt">{{ saved_prompt }}</textarea>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn-warm" onclick="savePrompt()">💾 Save Prompt</button>
+      <button class="btn-warm" onclick="resetPrompt()">↩️ Reset to Default</button>
+      <div class="prompt-save-status" id="prompt-status"></div>
+    </div>
+  </div>
+
+  <!-- Highlights Preview -->
+  <div class="card-warm">
+    <div class="section-label" style="justify-content:space-between">
+      <span>✨ Highlights Being Analyzed</span>
+      <span style="font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)">{{ insights|length }} saved</span>
+    </div>
+    {% for ins in insights %}
+    <div class="highlight-pill">
+      <div class="highlight-meta">
+        {% if ins.category %}
+          {% set ck = ins.category.split('/')[0].strip().split(' ')[0] %}
+          <span class="cat-badge cat-{{ ck }}">{{ ins.category }}</span>
+        {% endif %}
+        {% if ins.created_at %}
+          <span style="font-size:11px;color:var(--muted)">{{ ins.created_at[:10] }}</span>
+        {% endif %}
+      </div>
+      <div class="highlight-quote">"{{ ins.highlighted_text[:220] }}{% if ins.highlighted_text|length > 220 %}…{% endif %}"</div>
+      {% if ins.my_thoughts and ins.my_thoughts.strip() %}
+        <div class="my-thought-preview">💭 {{ ins.my_thoughts[:130] }}{% if ins.my_thoughts|length > 130 %}…{% endif %}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Analyze -->
+  <div class="analyze-section">
+    <button class="btn-analyze" id="analyze-btn" onclick="runAnalysis()">
+      🔮 Analyze My Insights
+    </button>
+    <div class="tagline">Powered by Claude AI — takes about 10–15 seconds</div>
+  </div>
+
+  <!-- Error -->
+  <div class="msg-box error" id="error-box"></div>
+
+  <!-- Fresh result (appears after each run) -->
+  <div class="analysis-fresh" id="analysis-fresh">
+    <div class="fresh-header">
+      <div class="fresh-title">🌱 Your Analysis</div>
+      <div class="fresh-stamp" id="fresh-stamp"></div>
+    </div>
+    <div class="analysis-body" id="analysis-body"></div>
+
+    <!-- Feedback -->
+    <div class="feedback-section">
+      <div class="feedback-label">💬 Your Reflection</div>
+      <div class="feedback-hint">What resonated? What surprised you? What will you work on this week?
+        Your answer is saved and included as context in your <em>next</em> analysis — so your growth journey builds over time.</div>
+      <textarea class="feedback-textarea" id="fresh-feedback"
+                placeholder="e.g. The part about anxious attachment really hit home. I noticed I do this when my messages go unanswered. I want to work on sitting with uncertainty instead of reaching out immediately..."
+                oninput="markFeedbackDirty()" onblur="saveFreshFeedback()"></textarea>
+      <div class="feedback-save-status" id="fresh-feedback-status"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  {% if history or search %}
+  <div class="divider"></div>
+  <div class="history-header">
+    <div style="font-size:18px;font-weight:800;color:var(--text)">📚 Previous Analyses</div>
+    <form method="get" action="/ai-insights" style="display:flex;gap:8px;align-items:center">
+      <input class="history-search" name="q" placeholder="Search analyses..." value="{{ search }}">
+      {% if search %}
+        <a href="/ai-insights" class="btn-warm" style="padding:7px 12px;font-size:12px">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if not history %}
+  <div style="text-align:center;padding:30px;color:var(--muted);font-size:14px">No analyses match "{{ search }}"</div>
+  {% endif %}
+
+  {% for entry in history %}
+  <div class="history-card" id="hcard-{{ entry.id }}">
+    <div class="history-card-header">
+      <div class="history-date">📅 {{ entry.created_at[:16].replace('T', ' ') if 'T' in entry.created_at else entry.created_at[:16] }}</div>
+      <div class="history-card-actions">
+        <button class="expand-btn" onclick="toggleExpand({{ entry.id }})">Read more</button>
+        <button class="btn-warm danger" style="padding:4px 10px;font-size:11px" onclick="deleteAnalysis({{ entry.id }})">Delete</button>
+      </div>
+    </div>
+
+    <div class="history-snippet" id="hsnip-{{ entry.id }}">{{ entry.analysis_text[:400] }}…</div>
+    <div class="history-full" id="hfull-{{ entry.id }}">{{ entry.analysis_text }}</div>
+    <button class="expand-btn" id="hless-{{ entry.id }}" style="display:none" onclick="toggleExpand({{ entry.id }})">Show less</button>
+
+    {% if entry.feedback and entry.feedback.strip() %}
+    <div class="history-feedback">
+      <div class="history-feedback-label">Your reflection</div>
+      {{ entry.feedback }}
+    </div>
+    {% endif %}
+
+    <!-- Feedback textarea for each history entry -->
+    <div class="feedback-section">
+      <div class="feedback-label">💬 {% if entry.feedback and entry.feedback.strip() %}Update your reflection{% else %}Add a reflection{% endif %}</div>
+      <textarea class="feedback-textarea" id="hfeedback-{{ entry.id }}"
+                placeholder="What did this analysis bring up for you? What have you been working on since?"
+                oninput="markHistoryDirty({{ entry.id }})"
+                onblur="saveHistoryFeedback({{ entry.id }})">{{ entry.feedback or '' }}</textarea>
+      <div class="feedback-save-status" id="hfstatus-{{ entry.id }}"></div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% endif %} {# end if insights #}
+</div>
+
+<script>
+const DEFAULT_PROMPT = {{ default_prompt | tojson }};
+let currentAnalysisId = null;
+let freshFeedbackDirty = false;
+const historyDirty = {};
+
+// ── API Key ────────────────────────────────────────────────
+async function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) return;
+  await fetch('/ai-insights/save-key', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ api_key: key })
+  });
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('api-key-input').placeholder = 'Key saved — enter a new one to replace it';
+  // Show key-saved indicator if not already there
+  const saved = document.querySelector('.key-saved');
+  if (!saved) location.reload();
+}
+
+async function deleteApiKey() {
+  if (!confirm('Delete the saved API key? You will need to re-enter it to run analyses.')) return;
+  await fetch('/ai-insights/delete-key', { method: 'POST' });
+  document.getElementById('api-key-input').placeholder = 'Paste your API key here (sk-ant-...)';
+  const btn = document.getElementById('delete-key-btn');
+  if (btn) btn.style.display = 'none';
+  const saved = document.querySelector('.key-saved');
+  if (saved) saved.style.display = 'none';
+}
+
+// ── Prompt ────────────────────────────────────────────────
+async function savePrompt() {
+  const prompt = document.getElementById('therapist-prompt').value.trim();
+  if (!prompt) return;
+  await fetch('/ai-insights/save-prompt', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  const s = document.getElementById('prompt-status');
+  s.textContent = '✅ Prompt saved!';
+  setTimeout(() => s.textContent = '', 2500);
+}
+
+function resetPrompt() {
+  document.getElementById('therapist-prompt').value = DEFAULT_PROMPT;
+}
+
+// ── Markdown render ──────────────────────────────────────
+function renderMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+// ── Analysis ─────────────────────────────────────────────
+async function runAnalysis() {
+  const btn = document.getElementById('analyze-btn');
+  const errorBox = document.getElementById('error-box');
+  const fresh = document.getElementById('analysis-fresh');
+
+  errorBox.classList.remove('visible');
+  fresh.classList.remove('visible');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Thinking…';
+
+  const prompt = document.getElementById('therapist-prompt')?.value?.trim() || '';
+
+  try {
+    const resp = await fetch('/ai-insights/analyze', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await resp.json();
+    if (data.error) {
+      errorBox.textContent = data.error;
+      errorBox.classList.add('visible');
+    } else {
+      document.getElementById('analysis-body').innerHTML = renderMarkdown(data.analysis);
+      document.getElementById('fresh-stamp').textContent = new Date().toLocaleString();
+      document.getElementById('fresh-feedback').value = '';
+      freshFeedbackDirty = false;
+      currentAnalysisId = data.analysis_id;
+      fresh.classList.add('visible');
+      fresh.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Reload page after short delay to show in history
+      setTimeout(() => location.reload(), 15000);
+    }
+  } catch(e) {
+    errorBox.textContent = 'Request failed: ' + e.message;
+    errorBox.classList.add('visible');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🔮 Analyze My Insights';
+}
+
+// ── Fresh feedback ────────────────────────────────────────
+function markFeedbackDirty() { freshFeedbackDirty = true; }
+
+async function saveFreshFeedback() {
+  if (!freshFeedbackDirty || !currentAnalysisId) return;
+  freshFeedbackDirty = false;
+  const text = document.getElementById('fresh-feedback').value;
+  const status = document.getElementById('fresh-feedback-status');
+  try {
+    await fetch('/ai-insights/' + currentAnalysisId + '/feedback', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feedback: text })
+    });
+    status.textContent = '✅ Saved!';
+    setTimeout(() => status.textContent = '', 2000);
+  } catch(e) { status.textContent = 'Save failed'; }
+}
+
+// ── History feedback ──────────────────────────────────────
+function markHistoryDirty(id) { historyDirty[id] = true; }
+
+async function saveHistoryFeedback(id) {
+  if (!historyDirty[id]) return;
+  historyDirty[id] = false;
+  const text = document.getElementById('hfeedback-' + id)?.value || '';
+  const status = document.getElementById('hfstatus-' + id);
+  try {
+    await fetch('/ai-insights/' + id + '/feedback', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feedback: text })
+    });
+    if (status) { status.textContent = '✅ Saved!'; setTimeout(() => status.textContent = '', 2000); }
+  } catch(e) { if (status) status.textContent = 'Save failed'; }
+}
+
+// ── History expand/collapse ───────────────────────────────
+function toggleExpand(id) {
+  const card = document.getElementById('hcard-' + id);
+  const lessBtn = document.getElementById('hless-' + id);
+  const expanded = card.classList.toggle('expanded');
+  if (lessBtn) lessBtn.style.display = expanded ? 'inline' : 'none';
+}
+
+// ── Delete analysis ───────────────────────────────────────
+async function deleteAnalysis(id) {
+  if (!confirm('Remove this analysis from your history?')) return;
+  try {
+    await fetch('/ai-insights/' + id + '/delete', { method: 'POST' });
+    const card = document.getElementById('hcard-' + id);
+    if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .3s'; setTimeout(() => card.remove(), 300); }
+  } catch(e) { alert('Could not delete'); }
+}
+
+// ── Save on unload ────────────────────────────────────────
+window.addEventListener('beforeunload', () => {
+  if (freshFeedbackDirty && currentAnalysisId) {
+    const text = document.getElementById('fresh-feedback')?.value || '';
+    navigator.sendBeacon('/ai-insights/' + currentAnalysisId + '/feedback',
+      new Blob([JSON.stringify({ feedback: text })], { type: 'application/json' }));
+  }
+  for (const id of Object.keys(historyDirty)) {
+    if (historyDirty[id]) {
+      const text = document.getElementById('hfeedback-' + id)?.value || '';
+      navigator.sendBeacon('/ai-insights/' + id + '/feedback',
+        new Blob([JSON.stringify({ feedback: text })], { type: 'application/json' }));
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  * { box-sizing: border-box; }
+
+  .import-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+    height: calc(100vh - 54px); /* full height minus nav */
+    overflow: hidden;
+  }
+
+  /* Header spans both columns */
+  .import-header {
+    grid-column: 1 / -1;
+    padding: 16px 24px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+  }
+  .import-header h2 { font-size: 18px; margin: 0; }
+
+  /* Left: script panel */
+  .script-panel {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  .step { display: flex; gap: 12px; align-items: flex-start; }
+  .step-num {
+    background: var(--accent); color: #fff; width: 24px; height: 24px;
+    border-radius: 50%; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+  }
+  .step p { color: var(--muted); margin: 0; line-height: 1.6; font-size: 15px; }
+
+  .controls-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .controls-row label { font-size: 15px; font-weight: 600; color: var(--text); }
+  .controls-row input[type="number"] {
+    width: 72px; padding: 6px 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 15px; font-weight: 700; text-align: center;
+  }
+  .copy-script-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 16px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+  }
+  .copy-script-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-script-btn.copied { border-color: var(--secure); color: var(--secure); }
+
+  pre#scraper-script {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+    font-size: 11.5px; line-height: 1.55;
+    white-space: pre-wrap; word-break: break-all;
+    flex: 1; overflow-y: auto; margin: 0;
+    max-height: 340px;
+  }
+
+  /* Right: import panel */
+  .import-panel {
+    overflow-y: auto;
+    padding: 20px 20px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  .import-panel textarea {
+    width: 100%; height: 120px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'Cascadia Code', 'Fira Mono', monospace;
+    font-size: 11px; line-height: 1.5; padding: 10px; resize: vertical;
+  }
+  .import-panel textarea:focus { outline: none; border-color: var(--accent); }
+
+  .notice {
+    border-radius: 6px; padding: 10px 14px; font-size: 14px;
+  }
+  .notice.success { background: rgba(93,217,156,.12); border: 1px solid var(--secure); color: var(--secure); }
+  .notice.error   { background: rgba(192,57,43,.12);  border: 1px solid #c0392b;       color: #e74c3c; }
+
+  /* Unified action buttons */
+  .action-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 9px 16px; border-radius: 6px; border: none;
+    background: var(--accent); color: #fff;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: opacity .15s, transform .1s; white-space: nowrap;
+  }
+  .action-btn:hover { opacity: .85; transform: translateY(-1px); }
+  .action-btn:active { transform: translateY(0); }
+  .action-btn:disabled { opacity: .5; cursor: default; transform: none; }
+  .action-btn.done { background: #2e7d52; }
+
+  .btn-row {
+    display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap;
+  }
+  .btn-label {
+    font-size: 11px; color: var(--text); opacity: .6;
+    text-align: center; margin-top: 4px;
+  }
+</style>
+
+<div class="import-page">
+
+  <!-- Header -->
+  <div class="import-header">
+    <a href="/" style="color:var(--muted);font-size:13px">← Back</a>
+    <h2>Import / Update Posts</h2>
+  </div>
+
+  <!-- Left: Instructions + Script -->
+  <div class="script-panel">
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <p>Open <strong style="color:var(--text)">Derek Hart's Facebook profile</strong> in Chrome:<br>
+        <a href="https://www.facebook.com/derek.michael.hart" target="_blank">facebook.com/derek.michael.hart</a><br>
+        Scroll down until a few posts are visible.
+      </p>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <p>Access <strong style="color:var(--text)">Chrome Developer Tools</strong> — press <strong style="color:var(--text)">Ctrl + Shift + I</strong> (or F12), then click the <strong style="color:var(--text)">Console</strong> tab.</p>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <p>Set how many posts, copy the script, paste into the console, press <strong style="color:var(--text)">Enter</strong>.</p>
+    </div>
+
+    <div class="controls-row">
+      <label>Posts to scrape:</label>
+      <input type="number" id="target-input" value="20" min="1" max="500" oninput="updateTarget(this.value)">
+      <button class="copy-script-btn" id="copy-script-btn" onclick="copyScript()">📋 Copy Script</button>
+    </div>
+
+    <pre id="scraper-script">(async function() {
+
+  // ── CONFIG ──────────────────────────────────────
+  const TARGET = 20;  // posts to collect
+  // ────────────────────────────────────────────────
+
+  let collected = [], seen = new Set(), staleRounds = 0;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  console.log('🚀 Starting — target: ' + TARGET + ' posts');
+
+  async function expandSeeMore() {
+    [...document.querySelectorAll('[role="button"]')]
+      .filter(el => el.innerText?.trim() === 'See more')
+      .forEach(btn => { try { btn.click(); } catch(e) {} });
+    await wait(1500);
+  }
+
+  function harvest() {
+    for (let body of document.querySelectorAll('[data-ad-comet-preview="message"]')) {
+      if (collected.length >= TARGET) break;
+      [...body.querySelectorAll('[role="button"]')]
+        .filter(el => el.innerText?.trim() === 'See more')
+        .forEach(btn => { try { btn.click(); } catch(e) {} });
+      let node = body, postUrl = '', dateLabel = '';
+      for (let d = 0; d < 15; d++) {
+        node = node.parentElement; if (!node) break;
+        const lnk = node.querySelector('a[href*="/posts/"],a[href*="story_fbid"]');
+        if (lnk) { postUrl = lnk.href; dateLabel = lnk.innerText?.trim() || ''; break; }
+      }
+      const key = postUrl || body.innerText?.trim().substring(0, 60);
+      if (seen.has(key)) continue; seen.add(key);
+
+      // Preserve blank lines — they represent intentional pauses/spacing
+      const paras = [...body.querySelectorAll('[dir="auto"]')]
+        .map(el => el.innerText?.trimEnd() ?? '');
+      const deduped = paras.filter((t, i) => t !== paras[i - 1] || t === '');
+      const text = deduped.join('\n\n').replace(/(\n\n){3,}/g, '\n\n\n').trim();
+      if (!text || text.length < 30) continue;
+
+      // ── Likes & comments extraction ──────────────────────────────
+      function parseKM(s) {
+        s = (s || '').replace(/,/g, '').trim();
+        if (/[Kk]$/.test(s)) return Math.round(parseFloat(s) * 1000);
+        if (/[Mm]$/.test(s)) return Math.round(parseFloat(s) * 1000000);
+        return parseInt(s) || 0;
+      }
+      let likes = 0, comments = 0;
+
+      // Walk up to [role="article"] — Facebook's post container
+      let art = body;
+      for (let d = 0; d < 15; d++) {
+        if (!art.parentElement) break;
+        art = art.parentElement;
+        if (art.getAttribute('role') === 'article') break;
+      }
+
+      // 1. Reactions (likes): Facebook splits by type in aria-labels like "Like: 56 people",
+      //    "Love: 15 people", "Care: 3 people", etc. Sum them all for total reaction count.
+      const REACTION_TYPES = /^(Like|Love|Care|Haha|Wow|Sad|Angry):\s*([\d,.]+[KkMm]?)\s*people/i;
+      for (const el of art.querySelectorAll('[aria-label]')) {
+        const lbl = (el.getAttribute('aria-label') || '').trim();
+        const m = lbl.match(REACTION_TYPES);
+        if (m) { likes += parseKM(m[2]); }
+      }
+
+      // 2. Engagement block: Facebook renders a short text block like "75 8 17"
+      //    meaning [total-reactions, comments, shares]. Walk up, find it, take index [1].
+      //    This block appears as a text node / innerText of a small container.
+      //    Match: 1–5 digits, space, 1–5 digits, space, 1–5 digits (no other text).
+      const ENGAGE_RE = /^(\d{1,5})\s+(\d{1,5})\s+(\d{1,5})$/;
+      const allEls = art.querySelectorAll('*');
+      for (const el of allEls) {
+        // Only look at leaf-ish nodes whose direct text matches pattern
+        const t = (el.innerText || '').trim();
+        const m = t.match(ENGAGE_RE);
+        if (m) {
+          // m[1]=reactions, m[2]=comments, m[3]=shares
+          // If we already got likes from aria-labels, trust that; otherwise use m[1]
+          if (!likes) likes = parseInt(m[1]);
+          comments = parseInt(m[2]);
+          break;
+        }
+      }
+
+      // 3. Fallback: look for "X Comments" or "X Comment" link text
+      if (comments === 0) {
+        for (const el of art.querySelectorAll('a, span')) {
+          const t = (el.innerText || '').trim();
+          if (/^\d[\d,.]*\s*[KkMm]?\s*[Cc]omments?$/.test(t)) {
+            const m = t.match(/^([\d,.]*\d[KkMm]?)/);
+            if (m) { comments = parseKM(m[1]); break; }
+          }
+        }
+      }
+
+      const popularity = likes + comments;
+
+      collected.push({ date: dateLabel, url: postUrl, text, likes, comments, popularity });
+      console.log('✅ [' + collected.length + '/' + TARGET + '] 👍' + likes + ' 💬' + comments + ' — ' + text.replace(/\n/g,' ').substring(0,60) + '...');
+    }
+  }
+
+  for (let round = 0; collected.length < TARGET; round++) {
+    console.log('↓ Scroll #' + (round+1) + ' — ' + collected.length + ' posts so far');
+    await expandSeeMore();
+    const prev = collected.length;
+    harvest(); await wait(1000); harvest();
+    if (collected.length === prev) {
+      if (++staleRounds >= 5) { console.log('⚠️ Page exhausted.'); break; }
+    } else staleRounds = 0;
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    await wait(3000);
+  }
+
+  if (!collected.length) { console.log('❌ Nothing found.'); return; }
+  window.derekPosts = collected;
+  console.log('\n✅ DONE — ' + collected.length + ' posts. Copying to clipboard...');
+  await wait(800);
+
+  // DevTools copy() is the most reliable method in console context.
+  // Using compact JSON (no indentation) keeps the string small and fast.
+  let ok = false;
+  try {
+    copy(JSON.stringify(window.derekPosts));
+    ok = true;
+    console.log('📋 Copied! Switch to the Import page, click into the JSON box, and press Ctrl+V.');
+  } catch(e) {
+    console.log('⚠️ copy() failed: ' + e.message);
+  }
+  if (!ok) {
+    // Fallback: navigator.clipboard works on HTTPS (Facebook is HTTPS)
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(window.derekPosts));
+      ok = true;
+      console.log('📋 Copied via clipboard API! Switch to Import page and paste (Ctrl+V).');
+    } catch(e) {
+      console.log('⚠️ Clipboard API failed: ' + e.message);
+      console.log('👉 Run this manually in the console: copy(JSON.stringify(window.derekPosts))');
+    }
+  }
+})();</pre>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <p>When console shows <strong style="color:var(--secure)">✅ DONE!</strong>, paste the clipboard into the panel on the right and click <strong style="color:var(--text)">Import</strong>.</p>
+    </div>
+
+  </div>
+
+  <!-- Right: Import panel -->
+  <div class="import-panel">
+
+    <div id="success-box" class="notice success" style="display:none"></div>
+    <div id="error-box"   class="notice error"   style="display:none"></div>
+
+    <!-- Step 5 heading -->
+    <div class="step" style="margin-bottom:4px">
+      <div class="step-num">5</div>
+      <p style="color:var(--text);font-weight:600;font-size:15px">Run these in order after the script completes:</p>
+    </div>
+
+    <!-- Button 1 -->
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <button class="action-btn" id="copy-cmd-btn" onclick="copyConsoleCmd()" style="width:100%;justify-content:flex-start">
+        📋 Copy Console Command
+      </button>
+      <div class="btn-label" style="text-align:left;padding-left:4px">Copies command to paste into Facebook console as backup</div>
+    </div>
+
+    <!-- Button 2 -->
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <button class="action-btn" id="copy-posts-btn" onclick="copyFromDerekPosts()" style="width:100%;justify-content:flex-start">
+        📥 Copy from window.derekPosts
+      </button>
+      <div class="btn-label" style="text-align:left;padding-left:4px">Reads scraped data into the box below</div>
+    </div>
+
+    <!-- Button 3 -->
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <button class="action-btn" id="import-btn" onclick="doImport()" style="width:100%;justify-content:flex-start">
+        ✅ Import Posts
+      </button>
+      <div class="btn-label" style="text-align:left;padding-left:4px"><span id="import-status">Saves posts to database — duplicates skipped automatically</span></div>
+    </div>
+
+    <!-- Paste box -->
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:4px">Paste JSON <span style="font-weight:400;opacity:.6">(auto-filled above, or paste manually)</span></div>
+    <textarea id="json_data" placeholder='Paste JSON here, or use "Copy from window.derekPosts" above…'></textarea>
+
+    <!-- Danger zone -->
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Danger Zone</div>
+      <button class="action-btn" id="clear-btn" onclick="clearAllPosts()" style="background:#7a2020;width:100%;justify-content:flex-start">
+        🗑 Clear All Posts
+      </button>
+      <div class="btn-label" style="text-align:left;padding-left:4px">Permanently deletes all posts from the database</div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+function updateTarget(val) {
+  const n = parseInt(val) || 20;
+  const pre = document.getElementById('scraper-script');
+  pre.innerText = pre.innerText.replace(/const TARGET = \d+;/, 'const TARGET = ' + n + ';');
+}
+
+async function copyScript() {
+  const text = document.getElementById('scraper-script').innerText;
+  const btn = document.getElementById('copy-script-btn');
+  try { await navigator.clipboard.writeText(text); }
+  catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  }
+  btn.textContent = '✅ Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.innerHTML = '📋 Copy Script'; btn.classList.remove('copied'); }, 2500);
+}
+
+async function copyConsoleCmd() {
+  const cmd = 'copy(JSON.stringify(window.derekPosts))';
+  const btn = document.getElementById('copy-cmd-btn');
+  try { await navigator.clipboard.writeText(cmd); }
+  catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = cmd; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  }
+  const orig = btn.innerHTML;
+  btn.textContent = '✅ Done'; btn.classList.add('done');
+  setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('done'); }, 2500);
+}
+
+async function copyFromDerekPosts() {
+  const btn = document.getElementById('copy-posts-btn');
+  const errorBox = document.getElementById('error-box');
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text && text.trim().startsWith('[')) {
+      document.getElementById('json_data').value = text;
+      errorBox.style.display = 'none';
+      const orig = btn.innerHTML;
+      btn.textContent = '✅ Done'; btn.classList.add('done');
+      setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('done'); }, 2500);
+    } else { throw new Error('no JSON'); }
+  } catch(e) {
+    errorBox.textContent = 'Clipboard read blocked — paste JSON manually into the box below (Ctrl+V).';
+    errorBox.style.display = '';
+    document.getElementById('json_data').focus();
+  }
+}
+
+async function clearAllPosts() {
+  if (!confirm('Delete ALL posts from the database? This cannot be undone.')) return;
+  const btn = document.getElementById('clear-btn');
+  const successBox = document.getElementById('success-box');
+  const errorBox = document.getElementById('error-box');
+  successBox.style.display = 'none'; errorBox.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Clearing…';
+  try {
+    const resp = await fetch('/posts/clear', { method: 'POST' });
+    const data = await resp.json();
+    if (data.cleared) {
+      successBox.textContent = '✓ All posts deleted.';
+      successBox.style.display = '';
+    }
+  } catch(e) { errorBox.textContent = 'Error: ' + e.message; errorBox.style.display = ''; }
+  btn.disabled = false; btn.innerHTML = '🗑 Clear All Posts';
+}
+
+async function doImport() {
+  const btn = document.getElementById('import-btn');
+  const status = document.getElementById('import-status');
+  const successBox = document.getElementById('success-box');
+  const errorBox = document.getElementById('error-box');
+  successBox.style.display = 'none'; errorBox.style.display = 'none';
+
+  let raw = document.getElementById('json_data').value.trim();
+  if (!raw) {
+    errorBox.textContent = 'Paste the JSON into the box below first (Ctrl+V), then click Import Posts.';
+    errorBox.style.display = ''; btn.disabled = false; btn.innerHTML = '✅ Import Posts';
+    document.getElementById('json_data').focus();
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Importing…';
+  status.textContent = 'Sending to server…';
+  try {
+    const resp = await fetch('/import_json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ json_data: raw })
+    });
+    const data = await resp.json();
+    if (data.error) { errorBox.textContent = 'Error: ' + data.error; errorBox.style.display = ''; }
+    else {
+      let msg = '✓ Imported ' + data.imported + ' new posts';
+      if (data.updated > 0) msg += ', updated ' + data.updated + ' (likes/comments refreshed)';
+      msg += ' — ' + data.skipped + ' skipped.';
+      successBox.textContent = msg;
+      successBox.style.display = '';
+      document.getElementById('json_data').value = '';
+    }
+  } catch(e) { errorBox.textContent = 'Request failed: ' + e.message; errorBox.style.display = ''; }
+  btn.disabled = false; btn.innerHTML = '✅ Import Posts';
+}
+</script>
+{% endblock %}

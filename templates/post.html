@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .post-container { max-width: 800px; margin: 0 auto; padding: 28px 20px; }
+
+  .post-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 20px; }
+
+  /* View / Edit toggle tabs */
+  .mode-tabs { display: flex; gap: 0; margin-bottom: 18px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .mode-tab {
+    padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+    background: var(--surface2); color: var(--muted); border: none;
+    transition: all .15s;
+  }
+  .mode-tab.active { background: var(--accent); color: #fff; }
+  .mode-tab:hover:not(.active) { color: var(--text); }
+
+  /* Version toggle (Original / Personalized) */
+  .version-bar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    padding: 10px 14px; background: var(--surface2); border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .version-bar span { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .vtoggle { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .vtoggle button {
+    padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--surface); color: var(--muted); border: none; transition: all .15s;
+  }
+  .vtoggle button.active { background: var(--accent); color: #fff; }
+  .diff-legend { display: flex; gap: 10px; margin-left: auto; font-size: 11px; align-items: center; }
+  .diff-legend span { display: flex; align-items: center; gap: 4px; }
+  .legend-add { background: rgba(93,217,156,.25); color: var(--secure); padding: 1px 6px; border-radius: 3px; }
+  .legend-del { background: rgba(247,124,106,.2); color: var(--anxious); padding: 1px 6px; border-radius: 3px; text-decoration: line-through; }
+
+  /* Text display */
+  .text-display {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px 24px;
+    font-size: 17px; line-height: 1.9; white-space: pre-wrap;
+    word-break: break-word; min-height: 140px; color: var(--text);
+  }
+  .text-display.personalized { border-color: var(--revised-badge); }
+
+  /* Diff highlights */
+  .diff-add { background: rgba(93,217,156,.22); color: var(--secure); border-radius: 2px; padding: 0 1px; }
+  .diff-del { background: rgba(247,124,106,.18); color: var(--anxious); text-decoration: line-through; border-radius: 2px; padding: 0 1px; }
+
+  /* Edit area */
+  .edit-area { display: none; }
+  .edit-area textarea {
+    width: 100%; min-height: 360px; background: var(--surface);
+    border: 1px solid var(--accent); border-radius: var(--radius);
+    color: var(--text); font-size: 17px; line-height: 1.9; padding: 20px 22px;
+    resize: vertical; font-family: inherit;
+  }
+  .edit-area textarea:focus { outline: none; border-color: var(--accent2); }
+  .edit-hint { font-size: 14px; color: var(--text); margin-bottom: 10px; }
+  .edit-actions { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  .section-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 10px; }
+
+  /* Floating insight button */
+  #insight-float-btn {
+    display: none;
+    position: absolute;
+    z-index: 500;
+    padding: 7px 14px;
+    background: var(--accent2);
+    color: #0f1117;
+    border: none;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+    white-space: nowrap;
+    transition: transform .1s;
+  }
+  #insight-float-btn:hover { transform: scale(1.05); }
+  .fav-btn { background: none; border: none; cursor: pointer; line-height: 1; padding: 2px 4px; border-radius: 4px; transition: transform .15s; }
+  .fav-btn:hover { transform: scale(1.3); }
+  .fav-post-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all .15s; white-space: nowrap; flex-shrink: 0;
+  }
+  .fav-post-btn:hover { border-color: var(--healing); color: var(--healing); }
+  .fav-post-btn.is-fav { background: rgba(247,201,106,.15); border-color: var(--healing); color: var(--healing); }
+</style>
+
+<!-- Floating Save to Insights button (appears on text selection) -->
+<button id="insight-float-btn" onclick="saveInsight()">✨ Save to Insights</button>
+
+<div class="post-container">
+  <a href="/" class="back-link" style="color:var(--muted);font-size:13px">← Back to Library</a>
+
+  <div class="post-header" style="justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      {% set cat_key = post.category.split('/')[0].strip().split(' ')[0] %}
+      <span class="cat-badge cat-{{ cat_key }}">{{ post.category }}</span>
+      {% if post.is_revised %}
+      <span class="revised-badge" id="personalized-badge">✏ Personalized</span>
+      {% else %}
+      <span class="original-badge" id="personalized-badge">Original</span>
+      {% endif %}
+      {% if post.date_label %}
+      <span style="font-size:13px;color:var(--text)">{{ post.date_label }}</span>
+      {% endif %}
+      {% if post.likes and post.likes > 0 %}
+      <span style="font-size:13px;color:var(--avoidant)">👍 {{ post.likes }} likes</span>
+      {% endif %}
+      {% if post.comments and post.comments > 0 %}
+      <span style="font-size:13px;color:var(--muted)">💬 {{ post.comments }} comments</span>
+      {% endif %}
+      {% if post.post_url %}
+      <a href="{{ post.post_url }}" target="_blank" style="font-size:13px;color:var(--text)">View on Facebook ↗</a>
+      {% endif %}
+    </div>
+    <button class="fav-post-btn {{ 'is-fav' if post.is_favorite }}" id="fav-btn-post" onclick="toggleFav({{ post.id }}, this)">
+      <span id="fav-star">{{ '⭐' if post.is_favorite else '☆' }}</span>
+      <span id="fav-label">{{ 'Favorited' if post.is_favorite else 'Add to Favorites' }}</span>
+    </button>
+  </div>
+
+  <!-- Mode tabs: View / Edit -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tab-view" onclick="setMode('view')">👁 View</button>
+    <button class="mode-tab" id="tab-edit" onclick="setMode('edit')">✏ Edit</button>
+  </div>
+
+  <!-- VIEW MODE -->
+  <div id="view-mode">
+    {% if post.is_revised %}
+    <div class="version-bar">
+      <span>Version:</span>
+      <div class="vtoggle">
+        <button id="btn-original" onclick="showVersion('original')">Original</button>
+        <button id="btn-personalized" class="active" onclick="showVersion('personalized')">Personalized</button>
+        <button id="btn-diff" onclick="showVersion('diff')">Changes</button>
+      </div>
+      <div class="diff-legend" id="diff-legend" style="display:none">
+        <span><span class="legend-add">added</span></span>
+        <span><span class="legend-del">removed</span></span>
+      </div>
+    </div>
+    {% endif %}
+
+    <div id="display-original" class="text-display" style="{{ 'display:none' if post.is_revised else '' }}">{{ post.original_text }}</div>
+    {% if post.is_revised %}
+    <div id="display-personalized" class="text-display personalized">{{ post.revised_text }}</div>
+    <div id="display-diff" class="text-display personalized" style="display:none"></div>
+    {% endif %}
+  </div>
+
+  <!-- EDIT MODE -->
+  <div id="edit-mode" class="edit-area">
+    <p class="edit-hint">Edit the post below to personalize it. The original is always preserved — use the Changes view to see what you changed.</p>
+    <form method="POST" action="/post/{{ post.id }}/edit" id="edit-form">
+      <textarea name="revised_text" id="edit-textarea">{{ post.revised_text if post.revised_text else post.original_text }}</textarea>
+      <div class="edit-actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        {% if post.is_revised %}
+        <button type="button" class="btn btn-secondary" onclick="revertToOriginal()">Revert to Original</button>
+        {% endif %}
+        <button type="button" class="btn btn-secondary" onclick="setMode('view')">Cancel</button>
+        <form method="POST" action="/post/{{ post.id }}/revert" style="display:inline;margin:0">
+          <button id="revert-btn" type="submit" class="btn btn-secondary" style="display:none">Revert to Original</button>
+        </form>
+      </div>
+    </form>
+  </div>
+
+  <hr class="divider">
+  <form method="POST" action="/post/{{ post.id }}/delete" onsubmit="return confirm('Delete this post?')">
+    <button type="submit" class="btn btn-danger btn-sm">Delete Post</button>
+  </form>
+</div>
+
+<script>
+const originalText = {{ post.original_text | tojson }};
+const revisedText = {{ (post.revised_text or '') | tojson }};
+const isRevised = {{ 'true' if post.is_revised else 'false' }};
+
+// ── Mode switching ──────────────────────────────────────────
+function setMode(mode) {
+  const viewEl = document.getElementById('view-mode');
+  const editEl = document.getElementById('edit-mode');
+  const tabView = document.getElementById('tab-view');
+  const tabEdit = document.getElementById('tab-edit');
+  if (mode === 'edit') {
+    viewEl.style.display = 'none';
+    editEl.style.display = 'block';
+    tabView.classList.remove('active');
+    tabEdit.classList.add('active');
+  } else {
+    viewEl.style.display = 'block';
+    editEl.style.display = 'none';
+    tabView.classList.add('active');
+    tabEdit.classList.remove('active');
+  }
+}
+
+// ── Version toggle ─────────────────────────────────────────
+function showVersion(v) {
+  const orig = document.getElementById('display-original');
+  const pers = document.getElementById('display-personalized');
+  const diff = document.getElementById('display-diff');
+  const legend = document.getElementById('diff-legend');
+  const btnO = document.getElementById('btn-original');
+  const btnP = document.getElementById('btn-personalized');
+  const btnD = document.getElementById('btn-diff');
+  [orig, pers, diff].forEach(el => { if(el) el.style.display = 'none'; });
+  [btnO, btnP, btnD].forEach(el => { if(el) el.classList.remove('active'); });
+  if (legend) legend.style.display = 'none';
+  if (v === 'original') { orig.style.display = ''; btnO.classList.add('active'); }
+  else if (v === 'personalized') { pers.style.display = ''; btnP.classList.add('active'); }
+  else if (v === 'diff') {
+    diff.style.display = ''; btnD.classList.add('active');
+    if (legend) legend.style.display = 'flex';
+    if (!diff.dataset.rendered) {
+      diff.innerHTML = computeDiff(originalText, revisedText);
+      diff.dataset.rendered = '1';
+    }
+  }
+}
+
+// ── Word-level diff ────────────────────────────────────────
+function computeDiff(a, b) {
+  // Tokenize preserving whitespace
+  const tokA = tokenize(a);
+  const tokB = tokenize(b);
+  const lcs = getLCS(tokA, tokB);
+  let html = '', ia = 0, ib = 0, il = 0;
+  while (ia < tokA.length || ib < tokB.length) {
+    if (il < lcs.length && ia < tokA.length && ib < tokB.length &&
+        tokA[ia] === lcs[il] && tokB[ib] === lcs[il]) {
+      html += esc(tokA[ia]); ia++; ib++; il++;
+    } else {
+      // Collect removals
+      let del = '';
+      while (ia < tokA.length && (il >= lcs.length || tokA[ia] !== lcs[il])) {
+        del += tokA[ia++];
+      }
+      // Collect additions
+      let add = '';
+      while (ib < tokB.length && (il >= lcs.length || tokB[ib] !== lcs[il])) {
+        add += tokB[ib++];
+      }
+      if (del) html += '<span class="diff-del">' + esc(del) + '</span>';
+      if (add) html += '<span class="diff-add">' + esc(add) + '</span>';
+    }
+  }
+  return html;
+}
+
+function tokenize(str) {
+  // Split into words + whitespace tokens
+  return str.match(/\S+|\s+/g) || [];
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function getLCS(a, b) {
+  // Standard LCS on word arrays — capped for performance
+  const MAX = 800;
+  const A = a.slice(0, MAX), B = b.slice(0, MAX);
+  const m = A.length, n = B.length;
+  const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = A[i-1] === B[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  // Backtrack
+  let i = m, j = n, lcs = [];
+  while (i > 0 && j > 0) {
+    if (A[i-1] === B[j-1]) { lcs.unshift(A[i-1]); i--; j--; }
+    else if (dp[i-1][j] > dp[i][j-1]) i--;
+    else j--;
+  }
+  return lcs;
+}
+
+function revertToOriginal() {
+  if (confirm('Revert to the original post? Your edits will be lost.')) {
+    document.getElementById('revert-btn').click();
+  }
+}
+
+// Show personalized by default if it exists
+if (isRevised) showVersion('personalized');
+
+// ── Insight selection ──────────────────────────────────────────
+const floatBtn = document.getElementById('insight-float-btn');
+let lastSelectedText = '';
+
+document.addEventListener('mouseup', function(e) {
+  if (e.target === floatBtn) return; // ignore clicks on the button itself
+  setTimeout(() => {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().trim() : '';
+    if (text.length > 5) {
+      lastSelectedText = text;
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      // Position button just below the selection
+      floatBtn.style.top  = (rect.bottom + window.scrollY + 10) + 'px';
+      floatBtn.style.left = Math.max(8, Math.min(rect.left + window.scrollX, window.innerWidth - 220)) + 'px';
+      floatBtn.style.display = 'inline-flex';
+      floatBtn.innerHTML = '✨ Save to Insights';
+    } else {
+      floatBtn.style.display = 'none';
+      lastSelectedText = '';
+    }
+  }, 10);
+});
+
+document.addEventListener('mousedown', function(e) {
+  if (e.target !== floatBtn) floatBtn.style.display = 'none';
+});
+
+async function saveInsight() {
+  if (!lastSelectedText) return;
+  floatBtn.textContent = 'Saving…';
+  try {
+    const resp = await fetch('/insights/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ post_id: {{ post.id }}, highlighted_text: lastSelectedText })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      floatBtn.innerHTML = '✓ Saved — <a href="/insights" style="color:#0f1117;text-decoration:underline">View Insights</a>';
+      setTimeout(() => { floatBtn.style.display = 'none'; }, 3000);
+    }
+  } catch(e) {
+    floatBtn.textContent = '✗ Failed';
+    setTimeout(() => { floatBtn.style.display = 'none'; }, 2000);
+  }
+  lastSelectedText = '';
+  window.getSelection()?.removeAllRanges();
+}
+
+async function toggleFav(id, btn) {
+  const resp = await fetch('/post/' + id + '/favorite', { method: 'POST' });
+  const data = await resp.json();
+  if (data.is_favorite !== undefined) {
+    const isFav = !!data.is_favorite;
+    document.getElementById('fav-star').textContent = isFav ? '⭐' : '☆';
+    document.getElementById('fav-label').textContent = isFav ? 'Favorited' : 'Add to Favorites';
+    btn.classList.toggle('is-fav', isFav);
+  }
+}
+</script>
+{% endblock %}

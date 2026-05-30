@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .cat-page { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+  .cat-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+  .cat-header h2 { font-size: 22px; margin: 0; }
+
+  /* Card grid */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+
+  .post-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 20px; cursor: pointer; transition: border-color .15s, transform .1s;
+    display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: var(--text);
+  }
+  .post-card:hover { border-color: var(--accent); transform: translateY(-2px); text-decoration: none; }
+
+  .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card-date { font-size: 12px; color: var(--text); opacity: .6; }
+  .card-pop { font-size: 12px; color: var(--healing); }
+  .card-likes { font-size: 11px; color: var(--avoidant); }
+  .card-comments { font-size: 11px; color: var(--muted); }
+
+  .card-first { font-size: 16px; font-weight: 700; line-height: 1.4; color: var(--text); }
+  .card-rest {
+    font-size: 13px; color: var(--text); opacity: .8; line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  .cat-sidebar { display: flex; gap: 24px; align-items: flex-start; }
+  .sidebar-nav { width: 200px; flex-shrink: 0; }
+  .sidebar-nav .cat-list { list-style: none; padding: 0; }
+  .sidebar-nav .cat-list li { margin-bottom: 2px; }
+  .sidebar-nav .cat-list a {
+    display: flex; justify-content: space-between; padding: 7px 10px;
+    border-radius: 6px; font-size: 13px; color: var(--text); transition: background .15s;
+  }
+  .sidebar-nav .cat-list a:hover { background: var(--surface2); text-decoration: none; }
+  .sidebar-nav .cat-list a.active { background: var(--surface2); color: var(--accent); }
+  .cnt { font-size: 11px; color: var(--text); opacity: .6; }
+
+  .sort-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .sort-bar label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .sort-select {
+    padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  .sort-select:focus { outline: none; border-color: var(--accent); }
+</style>
+
+<div class="cat-page">
+  <a href="/" style="color:var(--text);font-size:13px;opacity:.6">← All Posts</a>
+
+  <div class="cat-header" style="margin-top:14px">
+    {% set cat_key = category.split('/')[0].strip().split(' ')[0] %}
+    <span class="cat-badge cat-{{ cat_key }}" style="font-size:14px;padding:4px 14px">{{ category }}</span>
+    <h2>{{ posts|length }} post{{ 's' if posts|length != 1 }}</h2>
+  </div>
+
+  <div class="cat-sidebar">
+    <!-- Sidebar -->
+    <div class="sidebar-nav">
+      <div class="section-title">All Styles</div>
+      <div class="card" style="padding:8px">
+        <ul class="cat-list">
+          <li><a href="/">All <span class="cnt"></span></a></li>
+          {% for c in categories %}
+          <li>
+            {% set ck = c.category.split('/')[0].strip().split(' ')[0] %}
+            <a href="/category/{{ c.category|urlencode }}" class="{{ 'active' if c.category == category }}">
+              <span class="cat-badge cat-{{ ck }}" style="padding:1px 5px;font-size:10px">{{ c.category }}</span>
+              <span class="cnt">{{ c.cnt }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Cards -->
+    <div style="flex:1">
+      {% if posts %}
+
+      <!-- Sort bar -->
+      <div class="sort-bar">
+        <label>Sort by:</label>
+        <select class="sort-select" id="sort-select" onchange="sortCards(this.value)">
+          <option value="popularity">Popularity</option>
+          <option value="likes">Likes</option>
+          <option value="comments">Comments</option>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+      </div>
+
+      <div class="cards-grid" id="cards-grid">
+        {% for p in posts %}
+        <a href="/post/{{ p.id }}" class="post-card"
+           data-popularity="{{ p.popularity or 0 }}"
+           data-likes="{{ p.likes or 0 }}"
+           data-comments="{{ p.comments or 0 }}"
+           data-id="{{ p.id }}">
+          <div class="card-meta">
+            {% if p.is_revised %}<span class="revised-badge">✏ Personalized</span>{% endif %}
+            {% if p.date_label %}<span class="card-date">{{ p.date_label }}</span>{% endif %}
+            {% if p.likes and p.likes > 0 %}<span class="card-likes">👍 {{ p.likes }}</span>{% endif %}
+            {% if p.comments and p.comments > 0 %}<span class="card-comments">💬 {{ p.comments }}</span>{% endif %}
+            {% if (not p.likes or p.likes == 0) and (not p.comments or p.comments == 0) and p.popularity and p.popularity > 0 %}
+            <span class="card-pop">
+              {% if p.popularity >= 1000 %}🔥 {{ (p.popularity / 1000)|round(1) }}k
+              {% elif p.popularity >= 500 %}⭐ {{ p.popularity }}
+              {% else %}👍 {{ p.popularity }}{% endif %}
+            </span>
+            {% endif %}
+          </div>
+          <div class="card-first">{{ first_sentence(p.original_text) }}</div>
+          {% set rest = p.original_text[first_sentence(p.original_text)|length:].strip() %}
+          {% if rest %}<div class="card-rest">{{ rest }}</div>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card" style="padding:32px;text-align:center;color:var(--text)">No posts in this category.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script>
+function sortCards(by) {
+  const grid = document.getElementById('cards-grid');
+  if (!grid) return;
+  const cards = Array.from(grid.children);
+  cards.sort((a, b) => {
+    if (by === 'likes')    return (parseInt(b.dataset.likes) || 0)    - (parseInt(a.dataset.likes) || 0);
+    if (by === 'comments') return (parseInt(b.dataset.comments) || 0) - (parseInt(a.dataset.comments) || 0);
+    if (by === 'newest')   return (parseInt(b.dataset.id) || 0)       - (parseInt(a.dataset.id) || 0);
+    if (by === 'oldest')   return (parseInt(a.dataset.id) || 0)       - (parseInt(b.dataset.id) || 0);
+    return (parseInt(b.dataset.popularity) || 0) - (parseInt(a.dataset.popularity) || 0);
+  });
+  cards.forEach(c => grid.appendChild(c));
+  localStorage.setItem('catSort', by);
+}
+(function() {
+  const saved = localStorage.getItem('catSort');
+  const sel = document.getElementById('sort-select');
+  if (saved && sel) { sel.value = saved; sortCards(saved); }
+})();
+</script>
+{% endblock %}
