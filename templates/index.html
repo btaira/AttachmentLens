@@ -217,9 +217,10 @@
           <colgroup>
             <col style="width:2%">
             <col style="width:8%">
-            <col style="width:65%">
+            <col style="width:58%">
             <col style="width:5%">
-            <col style="width:12%">
+            <col style="width:10%">
+            <col style="width:9%">
             <col style="width:8%">
           </colgroup>
           <thead>
@@ -228,7 +229,8 @@
               <th>Style</th>
               <th>Post</th>
               <th>Date</th>
-              <th style="cursor:pointer" onclick="sortTable('likes')" title="Click to sort by likes">👍 Likes &nbsp;💬 Comments ↕</th>
+              <th style="cursor:pointer;white-space:nowrap;text-align:center" onclick="sortTable('likes')" title="Sort by likes">👍 Likes</th>
+              <th style="white-space:nowrap;text-align:center">💬 Comments</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -254,15 +256,16 @@
                 {% if rest %}<div class="rest">{{ rest }}</div>{% endif %}
               </td>
               <td style="white-space:nowrap;color:var(--text);font-size:12px">{{ p.date_label or '—' }}</td>
-              <td>
-                {% set has_detail = (p.likes and p.likes > 0) or (p.comments and p.comments > 0) %}
-                {% if has_detail %}
+              <td style="white-space:nowrap;text-align:center">
+                {% if p.likes and p.likes > 0 %}
                   <span class="pop-likes">👍 {{ p.likes if p.likes < 1000 else ((p.likes/1000)|round(1)|string + 'k') }}</span>
-                  {% if p.comments and p.comments > 0 %}
-                    <span style="color:var(--border)"> · </span><span class="pop-comments">💬 {{ p.comments if p.comments < 1000 else ((p.comments/1000)|round(1)|string + 'k') }}</span>
-                  {% endif %}
-                {% elif p.popularity and p.popularity > 0 %}
-                  <span class="pop">{{ p.popularity }}</span>
+                {% else %}
+                  <span style="color:var(--muted)">—</span>
+                {% endif %}
+              </td>
+              <td style="white-space:nowrap;text-align:center">
+                {% if p.comments and p.comments > 0 %}
+                  <span class="pop-comments">💬 {{ p.comments if p.comments < 1000 else ((p.comments/1000)|round(1)|string + 'k') }}</span>
                 {% else %}
                   <span style="color:var(--muted)">—</span>
                 {% endif %}

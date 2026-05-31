@@ -2,11 +2,8 @@
 
 ## High Priority
 
-
-
 - [ ] **[Requested by Brent, 2026-05-31]** Add logo
 - [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
-- [ ] **Multi-user support** — login system with per-user favorites, insights, AI insights, and modeled posts; user switcher dropdown in the upper-right nav bar; admin role for managing users and import/bulk-label
 - [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
 - [ ] **Browser extension scraper** — replace the fragile console script with an extension that captures posts as you naturally browse; Facebook changes its DOM regularly and the script will break again
 
@@ -20,7 +17,7 @@
 
 ## Longer Term
 
-- [ ] **Semantic search** — embed posts with a small model and search by meaning rather than keywords ("posts about fear of abandonment") instead of just substring match
+- [ ] **Semantic search** — embed posts with a small model and search by meaning rather than keywords ("posts about fear of abandonment") instead of just substring search
 - [ ] **Therapist export pack** — one-click export of favorites + insights + AI analysis formatted as a structured PDF for use in a session
 - [ ] **Mobile-friendly layout** — the current design works on desktop; a responsive mobile layout would allow browsing and annotating on the go
 
@@ -30,7 +27,7 @@
 - [x] Attachment style auto-classifier
 - [x] Post detail with edit / personalize / word diff
 - [x] Favorites with section on home page
-- [x] Likes & comments tracking and sorting
+- [x] Likes & comments tracking and sorting — split into separate columns, center-aligned
 - [x] Highlights / Insights — highlight text on any post, save with personal thoughts
 - [x] AI Insights — Claude analysis of all highlights, editable therapist prompt
 - [x] AI analysis history — searchable, with per-entry reflections that feed future analyses
@@ -50,3 +47,10 @@
 - [x] Date capture from Facebook posts — resolves relative timestamps ("3h" → "May 30, 2026")
 - [x] All Posts sort by newest/oldest using real post date
 - [x] Admin dropdown in nav — Import Posts and Bulk Label moved to right-side admin menu with emojis
+- [x] **Multi-user support** — login/register system, session-based auth, per-user favorites/insights/analyses/modeled posts, user switcher dropdown in nav, admin role
+- [x] **Session persistence across restarts** — secret key stored in `./data/.secret_key` (Docker volume); logins survive container rebuilds
+- [x] **Route protection** — all routes require login; unauthenticated page loads redirect to login; unauthenticated API calls return JSON 401
+- [x] **Per-user clear data** — Clear My Insights, Clear AI Analysis History, Clear Modeled Posts buttons in Danger Zone (Admin → Import/Update Posts)
+- [x] **GitHub Integration** — store a PAT token, test connection, commit feature requests to the repo's TODO.md
+- [x] **Feature request button** — 💡 Request in nav bar opens a modal; approved requests are committed to GitHub TODO.md
+- [x] **App logo** — two interlocking rings logo displayed in nav bar and login page

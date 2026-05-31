@@ -20,6 +20,13 @@ This is a personal journaling and research tool inspired by attachment theory fr
 
 ## Features
 
+👤 **Multi-User Support**
+- Login and registration system (session-based authentication)
+- Per-user favorites, insights, AI analyses, and modeled posts
+- User switcher dropdown in the top-right nav bar
+- Admin role for managing users, imports, and bulk-label
+- Sessions persist across app restarts (secret key stored in `./data/`)
+
 🔍 **Smart Classification**
 - Automatic keyword-based categorization of posts into 6 attachment-related categories
 - Manual override on any post detail page
@@ -44,7 +51,7 @@ This is a personal journaling and research tool inspired by attachment theory fr
 
 ⭐ **Organization & Tracking**
 - Favorite posts for quick access from the home page
-- Like/comment metrics captured from Facebook; sort by popularity, likes, comments
+- Like/comment metrics captured from Facebook; sort by popularity, likes, or comments
 - Post dates captured and resolved from Facebook's relative timestamps ("3h" → real date)
 - Sort library by newest, oldest, popularity, likes, or comments
 - Full-text search across your library
@@ -53,10 +60,17 @@ This is a personal journaling and research tool inspired by attachment theory fr
 📊 **Stats Dashboard**
 - Charts: category breakdown, read vs. unread, import timeline, top posts by popularity
 
+💡 **Feature Requests**
+- Submit feature requests directly from the nav bar using the 💡 Request button
+- Requests are committed to the GitHub repository's `TODO.md` automatically
+- Requires a GitHub Personal Access Token with `repo` scope (configured in ⚙️ Admin → Import/Update Posts)
+
 ⚙️ **Admin Tools** (in nav dropdown)
 - Import Posts — Facebook console scraper with copy-to-clipboard, auto-scroll, bulk import
 - Bulk Re-Label — table view with quick category dropdown per row; filter by category/read status/keyword
 - Backup & Restore — export full database to JSON; re-import to restore
+- GitHub Integration — connect your PAT to enable feature request commits
+- Danger Zone — clear your personal insights, AI analysis history, or modeled posts
 
 🎨 **User Experience**
 - Dark theme optimized for comfort and focus
@@ -79,21 +93,22 @@ This is a personal journaling and research tool inspired by attachment theory fr
 
 **Optional:**
 - Anthropic API key for AI analysis and Modeled Posts features
+- GitHub Personal Access Token (`repo` scope) for feature request commits
 
 ### Local Installation (Docker) — Recommended
 
 ```bash
-git clone https://github.com/yourusername/AttachmentLens.git
+git clone https://github.com/btaira/AttachmentLens.git
 cd AttachmentLens
 docker-compose up
 ```
 
-Visit `http://localhost:5000` — your database persists in `./data/posts.db`.
+Visit `http://localhost:5000` — your database and session key persist in `./data/`.
 
 ### Local Installation (Python)
 
 ```bash
-git clone https://github.com/yourusername/AttachmentLens.git
+git clone https://github.com/btaira/AttachmentLens.git
 cd AttachmentLens
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
@@ -105,9 +120,11 @@ The app starts at `http://localhost:5000`.
 
 ### First Time Setup
 
-1. **Import posts** — Open ⚙️ Admin → 📥 Import Posts; follow the steps to run the Facebook console scraper and paste the JSON
-2. **Explore & annotate** — Browse posts, mark favorites, highlight passages
-3. (Optional) **Set up AI** — Add your Anthropic API key on the 🧠 AI Insights page
+1. **Log in** — Visit `http://localhost:5000`; you'll be redirected to the login page. Default admin credentials: `admin` / `admin`
+2. **Import posts** — Open ⚙️ Admin → 📥 Import/Update Posts; follow the steps to run the Facebook console scraper and paste the JSON
+3. **Explore & annotate** — Browse posts, mark favorites, highlight passages
+4. (Optional) **Set up AI** — Add your Anthropic API key on the 🧠 AI Insights page
+5. (Optional) **Set up GitHub integration** — Add a GitHub PAT in ⚙️ Admin → Import/Update Posts to enable feature requests
 
 ---
 
@@ -161,20 +178,22 @@ Each analysis collects all highlighted passages, groups them with their categori
 
 SQLite (`posts.db`) with these tables:
 
-- **posts** — imported content with categories, revisions, favorites, likes, comments, dates
-- **insights** — highlighted text + personal reflections
-- **ai_analyses** — generated analyses + feedback history
-- **modeled_posts** — AI-generated posts in Derek Hart's style
-- **settings** — API keys, custom prompts
+- **users** — accounts with hashed passwords and admin flag
+- **user_post_prefs** — per-user favorites, read status, and tags (junction table)
+- **posts** — imported content with categories, revisions, likes, comments, dates
+- **insights** — highlighted text + personal reflections (per user)
+- **ai_analyses** — generated analyses + feedback history (per user)
+- **modeled_posts** — AI-generated posts in Derek Hart's style (per user)
+- **settings** — API keys, custom prompts (per user)
 
-All data is stored locally. Back up `posts.db` regularly.
+All data is stored locally. Back up via ⚙️ Admin → 💾 Backup & Restore regularly.
 
 ---
 
 ## Roadmap
 
 **High Priority**
-- [ ] Multi-user support — per-user favorites, insights, AI analyses, modeled posts; user switcher in nav
+- [ ] User customization — 6 different background themes, choice of fonts and sizes
 - [ ] Export to PDF — analyses and highlights formatted for therapy sessions
 - [ ] Browser extension scraper — replaces fragile console script
 
@@ -197,9 +216,18 @@ All data is stored locally. Back up `posts.db` regularly.
 AttachmentLens/
 ├── app.py                 # Flask application & all routes
 ├── requirements.txt       # Python dependencies
-├── posts.db              # SQLite database (created on first run)
+├── docker-compose.yml     # Docker configuration
+├── Dockerfile
+├── restart.bat            # Windows: rebuild & restart Docker container
+├── data/
+│   ├── posts.db          # SQLite database (created on first run)
+│   └── .secret_key       # Session secret key (persists across restarts)
+├── static/
+│   └── images/
+│       └── logo.png      # App logo
 ├── templates/
-│   ├── base.html         # Base layout, nav, styles
+│   ├── base.html         # Base layout, nav, styles, feature request modal
+│   ├── login.html        # Login & register pages
 │   ├── index.html        # Home + All Posts library
 │   ├── post.html         # Post detail view
 │   ├── category.html     # Category filter view
@@ -208,7 +236,7 @@ AttachmentLens/
 │   ├── modeled_posts.html # AI post generator
 │   ├── stats.html        # Stats dashboard
 │   ├── bulk_label.html   # Admin: bulk re-label
-│   └── import.html       # Admin: import posts
+│   └── import.html       # Admin: import posts, GitHub integration, danger zone
 └── README.md
 ```
 
@@ -216,12 +244,11 @@ AttachmentLens/
 
 ## Security & Privacy
 
-⚠️ **Important Notes:**
-
 - Data stored **locally** in SQLite — no cloud, no telemetry
 - API keys stored in the database (plaintext) — keep your database file secure
-- No built-in authentication — currently single-user/personal use only
-- Multi-user support is on the roadmap; until then, not suitable for shared environments without adding authentication and per-user data isolation
+- Session-based authentication with per-user data isolation
+- Session secret key persisted in `./data/.secret_key` so logins survive container restarts
+- All routes require authentication; unauthenticated requests redirect to the login page
 
 For therapy/medical contexts, consult your therapist before using any AI tools.
 
