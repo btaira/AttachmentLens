@@ -309,9 +309,14 @@ function sortTable(by) {
     if (by === 'comments')   return comments(b) - comments(a);
     if (by === 'popularity') return pop(b)       - pop(a);
     if (by === 'newest' || by === 'oldest') {
+      const now = Date.now();
+      // Posts with no date are assumed recent (just imported); sort them by ID among themselves,
+      // but treat as "today" so they appear at the top of "newest" and bottom of "oldest".
       const dateVal = d => {
         const ms = d.dataset.date ? new Date(d.dataset.date).getTime() : NaN;
-        return isNaN(ms) ? parseInt(d.dataset.id) || 0 : ms;
+        if (!isNaN(ms)) return ms;
+        // No date: use a synthetic timestamp just before now, offset by ID so newer imports sort first
+        return now - (1000000000 - (parseInt(d.dataset.id) || 0));
       };
       return by === 'newest' ? dateVal(b) - dateVal(a) : dateVal(a) - dateVal(b);
     }

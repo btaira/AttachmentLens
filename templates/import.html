@@ -288,29 +288,133 @@
     return nodes;
   }
 
+  const FULL_DATE_RE = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b.{1,6}\d{1,2}.{0,4}\d{4}/i;
+
+  function extractFullDate(text) {
+    if (!text || !FULL_DATE_RE.test(text)) return '';
+    return text.replace(/\s+at\s+\d{1,2}:\d{2}\s*(AM|PM)?/i, '').trim();
+  }
+
+  // Build a map of Element → dateString by scanning the entire page for timestamp signals.
+  // Returns array of {el, date} sorted by DOM order. Called once before each harvest pass.
+  function buildPageDateMap() {
+    const results = [];
+    const now = Date.now();
+    const addedEls = new Set();
+
+    function add(el, date) {
+      if (!addedEls.has(el)) { addedEls.add(el); results.push({el, date}); }
+    }
+
+    // <abbr data-utime> or any [data-utime]
+    for (const el of document.querySelectorAll('[data-utime]')) {
+      const ts = parseInt(el.getAttribute('data-utime')) * 1000;
+      if (ts > 1420000000000 && ts <= now + 86400000) add(el, fmtDate(new Date(ts)));
+    }
+    // <time datetime>
+    for (const el of document.querySelectorAll('time[datetime],[datetime]')) {
+      const val = el.getAttribute('datetime') || '';
+      const d = new Date(val);
+      if (!isNaN(d) && d.getFullYear() > 2010) add(el, fmtDate(d));
+    }
+    // Any element whose aria-label or title contains a full date
+    for (const el of document.querySelectorAll('[aria-label],[title]')) {
+      const v = el.getAttribute('aria-label') || el.getAttribute('title') || '';
+      const d = extractFullDate(v);
+      if (d) add(el, d);
+    }
+    // ISO datetime in any attribute
+    for (const el of document.querySelectorAll('*')) {
+      if (addedEls.has(el)) continue;
+      for (const attr of el.getAttributeNames()) {
+        const val = (el.getAttribute(attr) || '').trim();
+        if (!val || val.length > 60) continue;
+        if (/^\d{10}$/.test(val)) {
+          const ts = parseInt(val) * 1000;
+          if (ts > 1420000000000 && ts <= now + 86400000) { add(el, fmtDate(new Date(ts))); break; }
+        }
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(val)) {
+          const d = new Date(val);
+          if (!isNaN(d)) { add(el, fmtDate(d)); break; }
+        }
+      }
+    }
+    return results;
+  }
+
+  // Given a post body element and the page-wide date map, find the date whose element
+  // shares the closest (deepest) common ancestor with the body.
+  function findDateForBody(body, dateMap) {
+    if (!dateMap.length) return '';
+    // Walk up from body, collecting ancestors
+    const ancestors = [];
+    let n = body;
+    while (n) { ancestors.push(n); n = n.parentElement; }
+    const ancestorSet = new Set(ancestors);
+
+    // For each date entry, find the first ancestor of body that contains the date element
+    let bestDepth = -1, bestDate = '';
+    for (const {el, date} of dateMap) {
+      // Walk up from date element until we hit a body ancestor
+      let cur = el;
+      let depth = 0;
+      while (cur) {
+        if (ancestorSet.has(cur)) {
+          // cur is a shared ancestor; deeper = better (more specific to this post)
+          const d = ancestors.indexOf(cur); // 0 = body itself, higher = further up
+          // Prefer the entry with the smallest ancestor distance (closest shared root)
+          if (bestDepth < 0 || d < bestDepth) { bestDepth = d; bestDate = date; }
+          break;
+        }
+        cur = cur.parentElement;
+        depth++;
+      }
+    }
+    return bestDate;
+  }
+
   function harvest() {
+    const dateMap = buildPageDateMap();
+    console.log('📅 page date map:', dateMap.length, 'entries');
+
     for (let body of getPostBodies()) {
       if (collected.length >= TARGET) break;
       [...body.querySelectorAll('[role="button"]')]
         .filter(el => el.innerText?.trim() === 'See more')
         .forEach(btn => { try { btn.click(); } catch(e) {} });
 
-      // Walk 5 levels up from the post body — engagement bar is at +4, this gives us full coverage
-      const artScope = getPostScope(body, 5);
-      let postUrl = '', dateLabel = '', dateLnk = null;
-      // Find timestamp link by text pattern — FB's timestamp always has short clean text like
-      // "3h", "2d", "Monday", "January 5". Person names and obfuscated links never match.
-      const TS_PAT = /^(\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
-      const tsLnk = [...artScope.querySelectorAll('a[href]')].find(a => {
-        try {
-          const t = (a.innerText || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
-          return t.length > 0 && t.length <= 25 && TS_PAT.test(t);
-        } catch(e) { return false; }
-      });
-      if (tsLnk) {
-        postUrl = tsLnk.href;
-        const relText = (tsLnk.innerText || '').replace(/\s+/g, ' ').trim();
-        dateLabel = relText ? (resolveRelativeDate(relText) || relText) : '';
+      let postUrl = '', dateLabel = '';
+
+      // Pass 1: aria-label / title on links within 10-level scope (fast, handles older posts)
+      const artScope = getPostScope(body, 10);
+      for (const a of artScope.querySelectorAll('a[href]')) {
+        const v = a.getAttribute('aria-label') || a.getAttribute('title') || '';
+        const d = extractFullDate(v);
+        if (d) { dateLabel = d; postUrl = a.href; break; }
+      }
+
+      // Pass 2: page-wide date map matched by closest shared ancestor
+      if (!dateLabel) dateLabel = findDateForBody(body, dateMap);
+
+      // Pass 3: find post permalink URL independently of the date search.
+      // For recent posts the timestamp link points to the profile, not the post.
+      // Look for any link in scope whose href contains a post-specific path segment.
+      if (!postUrl) {
+        const PERMALINK_RE = /\/(posts|permalink|story_fbid|videos|photos|events)[\/?]/i;
+        for (const a of artScope.querySelectorAll('a[href]')) {
+          const h = a.href || '';
+          if (PERMALINK_RE.test(h) && !h.includes('comment_id')) { postUrl = h; break; }
+        }
+      }
+      // Fallback: use the first non-profile link (avoids profile URL but grabs something unique)
+      if (!postUrl) {
+        for (const a of artScope.querySelectorAll('a[href]')) {
+          const h = a.href || '';
+          // Skip profile links, reaction links, empty hrefs
+          if (h && !h.includes('/derek.michael.hart') && h.startsWith('https://www.facebook.com')) {
+            postUrl = h; break;
+          }
+        }
       }
 
       const key = postUrl || body.innerText?.trim().substring(0, 60);
@@ -322,6 +426,14 @@
       const deduped = paras.filter((t, i) => t !== paras[i - 1] || t === '');
       const text = deduped.join('\n\n').replace(/(\n\n){3,}/g, '\n\n\n').trim();
       if (!text || text.length < 30) continue;
+
+      if (!dateLabel) {
+        // Facebook no longer exposes date metadata in the DOM for recent posts.
+        // Fall back to today's date — recent posts at the top of the feed are
+        // always from the last 1–2 days. The user can correct via manual date edit.
+        dateLabel = fmtDate(new Date());
+        console.warn('⚠️ date not found — using today as fallback for post:', text.substring(0, 40));
+      }
 
       // ── Likes & comments extraction ──────────────────────────────
       let likes = 0, comments = 0;
@@ -392,7 +504,7 @@
 
       const popularity = likes + comments;
 
-      collected.push({ date: dateLabel, _dateLnk: dateLnk, _scope: artScope, url: postUrl, text, likes, comments, popularity });
+      collected.push({ date: dateLabel, url: postUrl, text, likes, comments, popularity });
       console.log('✅ [' + collected.length + '/' + TARGET + '] 📅' + (dateLabel || '(hover pending)') + ' 👍' + likes + ' 💬' + comments + ' — ' + text.replace(/\n/g,' ').substring(0,60) + '...');
     }
   }
@@ -401,7 +513,7 @@
     console.log('↓ Scroll #' + (round+1) + ' — ' + collected.length + ' posts so far');
     await expandSeeMore();
     const prev = collected.length;
-    harvest(); await wait(1000); harvest();
+    await harvest(); await wait(1000); await harvest();
     if (collected.length === prev) {
       staleRounds++;
       console.log('⏳ No new posts this round (' + staleRounds + '/' + MAX_STALE + ' stale)');
@@ -413,17 +525,15 @@
 
   if (!collected.length) { console.log('❌ Nothing found.'); return; }
 
-  // Second pass: resolve relative timestamps ("1h", "3d", "Monday") to real dates
+  // Final pass: resolve any dates still in relative form ("1h", "3d", "Monday") — hover failed or no link found
   let resolved = 0;
   for (const p of collected) {
-    if (p.date) {
+    if (p.date && !FULL_DATE_RE.test(p.date)) {
       const real = resolveRelativeDate(p.date);
       if (real && real !== p.date) { p.date = real; resolved++; }
     }
-    delete p._dateLnk;
-    delete p._scope;
   }
-  if (resolved) console.log('🗓 Resolved ' + resolved + ' relative dates');
+  if (resolved) console.log('🗓 Resolved ' + resolved + ' relative dates via calculation');
 
   window.derekPosts = collected;
   console.log('\n✅ DONE — ' + collected.length + ' posts. Copying to clipboard...');

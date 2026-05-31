@@ -425,8 +425,8 @@ def index():
         COALESCE(up.tags,'') as tags
     '''
     with get_db() as conn:
-        latest = conn.execute(
-            f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} ORDER BY p.id DESC LIMIT 5'
+        all_posts_for_latest = conn.execute(
+            f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} ORDER BY p.id DESC'
         ).fetchall()
         if search:
             library = conn.execute(
@@ -444,6 +444,18 @@ def index():
         favorites = conn.execute(
             f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} WHERE up.is_favorite = 1 ORDER BY p.category, p.popularity DESC'
         ).fetchall()
+    def parse_post_date(p):
+        dl = p['date_label'] or ''
+        if dl:
+            for fmt in ('%B %d, %Y', '%b %d, %Y', '%B %d %Y'):
+                try:
+                    return datetime.strptime(dl.strip(), fmt)
+                except ValueError:
+                    pass
+        return datetime(1970, 1, 1)
+
+    latest = sorted(all_posts_for_latest, key=parse_post_date, reverse=True)[:5]
+
     return render_template(
         'index.html',
         latest=latest,
@@ -957,6 +969,17 @@ def update_category(post_id):
     return jsonify({'ok': True, 'category': category})
 
 
+@app.route('/post/<int:post_id>/date', methods=['POST'])
+@login_required
+def update_date(post_id):
+    data = request.get_json(force=True) or {}
+    date_label = (data.get('date_label') or '').strip()
+    with get_db() as conn:
+        conn.execute('UPDATE posts SET date_label = ? WHERE id = ?', (date_label or None, post_id))
+        conn.commit()
+    return jsonify({'ok': True, 'date_label': date_label})
+
+
 @app.route('/post/<int:post_id>/tags', methods=['POST'])
 @login_required
 def update_tags(post_id):
@@ -1090,7 +1113,7 @@ def restore():
 def bulk_label():
     with get_db() as conn:
         posts = conn.execute(
-            'SELECT id, original_text, category, is_read, is_favorite, imported_at FROM posts ORDER BY id DESC'
+            'SELECT id, original_text, category, is_read, is_favorite, imported_at, date_label FROM posts ORDER BY id DESC'
         ).fetchall()
     return render_template('bulk_label.html', posts=posts,
                            categories=list(CATEGORIES.keys()) + [DEFAULT_CATEGORY])

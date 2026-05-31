@@ -55,11 +55,13 @@ This is a personal journaling and research tool inspired by attachment theory fr
 
 ⭐ **Organization & Tracking**
 - Favorite posts for quick access from the home page
+- Home page "Latest Posts" shows the 5 most recently dated posts
 - Like/comment metrics captured from Facebook; sort by popularity, likes, or comments
-- Post dates captured and resolved from Facebook's relative timestamps ("3h" → real date)
-- Sort library by newest, oldest, popularity, likes, or comments
+- Post dates captured from Facebook; falls back to today's date for very recent posts where Facebook no longer exposes date metadata
+- Sort library by newest, oldest, popularity, likes, or comments; undated posts treated as recent
 - Full-text search across your library
 - Edit and personalize post content with word-diff view
+- Manually set or correct any post's date from the post detail page
 
 📊 **Stats Dashboard**
 - Charts: category breakdown, read vs. unread, import timeline, top posts by popularity
@@ -71,7 +73,7 @@ This is a personal journaling and research tool inspired by attachment theory fr
 
 ⚙️ **Admin Tools** (in nav dropdown)
 - Import Posts — Facebook console scraper with copy-to-clipboard, auto-scroll, bulk import
-- Bulk Re-Label — table view with quick category dropdown per row; filter by category/read status/keyword
+- Bulk Re-Label — table view with category dropdown, date column, date filter, sortable by date; select rows to bulk-apply a date to multiple posts at once
 - Backup & Restore — export full database to JSON; re-import to restore
 - GitHub Integration — connect your PAT to enable feature request commits
 - Danger Zone — clear your personal insights, AI analysis history, or modeled posts
@@ -199,7 +201,7 @@ All data is stored locally. Back up via ⚙️ Admin → 💾 Backup & Restore r
 **High Priority**
 - [ ] User customization — 6 different background themes, choice of fonts and sizes
 - [ ] Export to PDF — analyses and highlights formatted for therapy sessions
-- [ ] Browser extension scraper — replaces fragile console script
+- [ ] Browser extension scraper — replaces fragile console script; Facebook changed its DOM in May 2026 and no longer exposes date metadata for recent posts
 
 **Medium Priority**
 - [ ] Date range filtering in the library

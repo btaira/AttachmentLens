@@ -2,17 +2,13 @@
 
 ## High Priority
 
-
-
-- [ ] **[Requested by Brent, 2026-05-31]** Work on getting correct date for recent posts
-- [ ] **[Requested by Brent, 2026-05-31]** Fix the date field when scraping posts
 - [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
 - [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
-- [ ] **Browser extension scraper** — replace the fragile console script with an extension that captures posts as you naturally browse; Facebook changes its DOM regularly and the script will break again
+- [ ] **Browser extension scraper** — replace the fragile console script with an extension that captures posts as you naturally browse; Facebook changed its DOM in May 2026 and timestamp links no longer expose date metadata — a browser extension can intercept network requests to get reliable post dates
 
 ## Medium Priority
 
-- [ ] **Post date filtering** — filter the library by date range (e.g. "last 30 days", "this year") using the date_label field now captured from Facebook
+- [ ] **Post date range filtering** — filter the library by date range (e.g. "last 30 days", "this year") using the date_label field
 - [ ] **Comment count accuracy** — for high-engagement posts Facebook shows "View all X comments" but collapses the count; investigate fetching the full comment count via the post URL
 - [ ] **Category confidence score** — show how certain the keyword classifier is; flag posts near the boundary between two styles for manual review
 - [ ] **Attachment style trend chart** — line chart on the Stats page showing which styles Derek posts about most over time, week by week
@@ -47,8 +43,8 @@
 - [x] Stats & progress dashboard — charts showing category breakdown, read vs unread, import timeline, top posts
 - [x] Backup & restore — export full database to JSON and re-import
 - [x] Bulk re-labeling view — table with quick category dropdown per row (moved to ⚙️ Admin menu)
-- [x] Date capture from Facebook posts — resolves relative timestamps ("3h" → "May 30, 2026")
-- [x] All Posts sort by newest/oldest using real post date
+- [x] Date capture from Facebook posts — resolves relative timestamps ("3h" → "May 30, 2026"); falls back to today's date for very recent posts where Facebook no longer exposes date metadata in the DOM
+- [x] All Posts sort by newest/oldest using real post date; undated posts sort as recent
 - [x] Admin dropdown in nav — Import Posts and Bulk Label moved to right-side admin menu with emojis
 - [x] **Multi-user support** — login/register system, session-based auth, per-user favorites/insights/analyses/modeled posts, user switcher dropdown in nav, admin role
 - [x] **Session persistence across restarts** — secret key stored in `./data/.secret_key` (Docker volume); logins survive container rebuilds
@@ -57,3 +53,6 @@
 - [x] **GitHub Integration** — store a PAT token, test connection, commit feature requests to the repo's TODO.md
 - [x] **Feature request button** — 💡 Request in nav bar opens a modal; approved requests are committed to GitHub TODO.md
 - [x] **App logo** — two interlocking rings logo displayed in nav bar, login page, and README; 50% larger in nav with increased nav height
+- [x] **Manual date editing on post detail** — pencil button next to date in the post meta row lets you set or correct any post's date inline
+- [x] **Bulk date assignment** — Bulk Re-Label page now has a Date column with a "No date" filter, sortable by date, and checkbox row selection for bulk-applying a date to multiple posts at once
+- [x] **Latest 5 posts sorted by date** — home page "Latest Posts" cards now show the 5 most recently dated posts rather than the 5 most recently imported

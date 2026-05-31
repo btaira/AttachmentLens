@@ -182,6 +182,20 @@
     <input class="tag-add-input" id="tag-input" placeholder="+ add tag"
            onkeydown="if(event.key==='Enter'){addTag();event.preventDefault()}">
 
+    <label style="margin-left:8px">Date:</label>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span id="date-display" style="font-size:13px;color:var(--text)">
+        {% if post.date_label %}{{ post.date_label }}{% else %}<span style="color:var(--muted)">No date</span>{% endif %}
+      </span>
+      <button onclick="toggleDateEdit()" id="date-edit-btn"
+        style="background:none;border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:11px;padding:2px 7px;cursor:pointer">✏</button>
+      <input id="date-input" type="text" placeholder="e.g. May 30, 2026"
+        style="display:none;padding:3px 8px;background:var(--surface2);border:1px solid var(--accent);border-radius:6px;color:var(--text);font-size:13px;width:150px"
+        onkeydown="if(event.key==='Enter')saveDate();if(event.key==='Escape')toggleDateEdit(false)">
+      <button id="date-save-btn" onclick="saveDate()"
+        style="display:none;padding:3px 10px;background:var(--accent);border:none;border-radius:5px;color:#fff;font-size:12px;font-weight:700;cursor:pointer">Save</button>
+    </div>
+
     <button class="read-btn {{ 'is-read' if post.is_read }}" id="read-btn" onclick="toggleRead({{ post.id }}, this)">
       {{ '✓ Read' if post.is_read else '○ Unread' }}
     </button>
@@ -467,6 +481,45 @@ async function toggleRead(id, btn) {
     const isRead = !!data.is_read;
     btn.textContent = isRead ? '✓ Read' : '○ Unread';
     btn.classList.toggle('is-read', isRead);
+  }
+}
+
+// ── Date editing ──────────────────────────────────────────
+let dateEditOpen = false;
+function toggleDateEdit(forceClose) {
+  dateEditOpen = forceClose === false ? false : !dateEditOpen;
+  const disp = document.getElementById('date-display');
+  const inp  = document.getElementById('date-input');
+  const btn  = document.getElementById('date-save-btn');
+  if (dateEditOpen) {
+    inp.value = (disp.querySelector('span') ? '' : disp.textContent.trim());
+    disp.style.display = 'none';
+    document.getElementById('date-edit-btn').style.display = 'none';
+    inp.style.display = '';
+    btn.style.display = '';
+    inp.focus();
+  } else {
+    disp.style.display = '';
+    document.getElementById('date-edit-btn').style.display = '';
+    inp.style.display = 'none';
+    btn.style.display = 'none';
+  }
+}
+
+async function saveDate() {
+  const val = document.getElementById('date-input').value.trim();
+  const resp = await fetch('/post/{{ post.id }}/date', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date_label: val })
+  });
+  const data = await resp.json();
+  if (data.ok) {
+    const disp = document.getElementById('date-display');
+    disp.innerHTML = val ? esc(val) : '<span style="color:var(--muted)">No date</span>';
+    toggleDateEdit(false);
+    const ind = document.getElementById('cat-save-indicator');
+    ind.style.opacity = '1';
+    setTimeout(() => ind.style.opacity = '0', 1800);
   }
 }
 
