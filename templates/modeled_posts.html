@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .mp-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: calc(100vh - 54px);
+    overflow: hidden;
+  }
+
+  /* ── Left panel: generator ── */
+  .mp-gen {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .mp-gen h2 { font-size: 17px; font-weight: 800; margin: 0; }
+  .mp-gen .subtitle { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .field-label {
+    font-size: 11px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+
+  .style-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .style-chip {
+    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all .15s; text-align: center;
+  }
+  .style-chip:hover { border-color: var(--accent); color: var(--text); }
+  .style-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .topic-suggestions {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .topic-pill {
+    padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted);
+    font-size: 12px; cursor: pointer; transition: all .15s;
+  }
+  .topic-pill:hover { border-color: var(--accent2); color: var(--accent2); }
+  .topic-pill.selected { background: rgba(93,217,196,.15); border-color: var(--accent2); color: var(--accent2); }
+
+  .topic-input {
+    width: 100%; padding: 10px 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px;
+    font-family: inherit; resize: none;
+  }
+  .topic-input:focus { outline: none; border-color: var(--accent); }
+
+  .generate-btn {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, var(--accent), var(--fearful));
+    background-size: 200% 200%;
+    animation: gradshift 4s ease infinite;
+    border: none; border-radius: 10px;
+    color: #fff; font-size: 15px; font-weight: 800;
+    cursor: pointer; transition: opacity .15s, transform .1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .generate-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+  .generate-btn:disabled { opacity: .5; cursor: default; transform: none; animation: none; }
+  @keyframes gradshift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .notice { border-radius: 6px; padding: 10px 14px; font-size: 13px; }
+  .notice.error { background: rgba(192,57,43,.12); border: 1px solid #c0392b; color: #e74c3c; }
+
+  /* ── Preview of generated post ── */
+  .preview-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 22px;
+    font-size: 16px; line-height: 1.9; white-space: pre-wrap;
+    word-break: break-word; color: var(--text);
+    font-family: 'Lora', Georgia, serif;
+    display: none;
+    position: relative;
+  }
+  .preview-meta {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    letter-spacing: .06em; text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .preview-actions {
+    display: flex; gap: 8px; margin-top: 14px;
+  }
+  .preview-action-btn {
+    flex: 1; padding: 8px 12px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all .15s; text-align: center;
+  }
+  .preview-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .preview-action-btn.fav { }
+  .preview-action-btn.fav.is-fav { border-color: var(--healing); color: var(--healing); background: rgba(247,201,106,.1); }
+
+  /* ── Right panel: saved posts ── */
+  .mp-saved {
+    overflow-y: auto;
+    padding: 24px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .mp-saved-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .mp-saved-header h3 { font-size: 16px; font-weight: 800; margin: 0; }
+
+  .filter-row {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  }
+  .filter-chip {
+    padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted);
+    font-size: 12px; cursor: pointer; transition: all .15s;
+  }
+  .filter-chip:hover { border-color: var(--accent); color: var(--text); }
+  .filter-chip.active { background: rgba(124,106,247,.15); border-color: var(--accent); color: var(--accent); }
+
+  .mp-post-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 22px;
+    transition: border-color .15s;
+  }
+  .mp-post-card:hover { border-color: var(--accent); }
+
+  .mp-post-meta {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .style-badge {
+    padding: 2px 9px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    background: rgba(124,106,247,.18); color: var(--accent);
+  }
+  .topic-badge {
+    font-size: 12px; color: var(--muted); font-style: italic;
+  }
+  .date-badge { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  .mp-post-text {
+    font-size: 15px; line-height: 1.85; white-space: pre-wrap; word-break: break-word;
+    font-family: 'Lora', Georgia, serif; color: var(--text);
+    max-height: 220px; overflow: hidden; position: relative;
+    transition: max-height .3s ease;
+  }
+  .mp-post-text.expanded { max-height: 2000px; }
+  .mp-post-text:not(.expanded)::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(transparent, var(--surface));
+  }
+
+  .mp-post-actions {
+    display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .mp-action-btn {
+    padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted);
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .mp-action-btn:hover { border-color: var(--accent); color: var(--text); }
+  .mp-action-btn.is-fav { border-color: var(--healing); color: var(--healing); }
+  .mp-action-btn.del:hover { border-color: #c0392b; color: #e74c3c; }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+</style>
+
+<div class="mp-layout">
+
+  <!-- ── LEFT: Generator ── -->
+  <div class="mp-gen">
+    <div>
+      <h2>🎭 Modeled Posts</h2>
+      <div class="subtitle">Generate new content in Derek Hart's voice — {{ total_posts }} posts learned from.</div>
+    </div>
+
+    {% if not api_key_set %}
+    <div class="notice error">No API key set — add your Anthropic key on the <a href="/ai-insights" style="color:#e74c3c">AI Insights</a> page first.</div>
+    {% endif %}
+
+    <!-- Attachment style -->
+    <div>
+      <div class="field-label">Attachment Style Lens</div>
+      <div class="style-grid" id="style-grid">
+        {% for style in attachment_styles %}
+        <div class="style-chip {% if loop.first %}selected{% endif %}"
+             onclick="selectStyle(this, '{{ style | replace("'", "\\'") }}')"
+             data-style="{{ style }}">
+          {{ style }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Topic suggestions -->
+    <div>
+      <div class="field-label">Suggested Topics</div>
+      <div class="topic-suggestions" id="topic-pills">
+        {% for t in suggested_topics %}
+        <div class="topic-pill" onclick="selectTopic(this, '{{ t | replace("'", "\\'") }}')" data-topic="{{ t }}">
+          {{ t }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Free-form topic -->
+    <div>
+      <div class="field-label">Topic — select above or write your own</div>
+      <textarea class="topic-input" id="topic-input" rows="2"
+        placeholder="e.g. What it feels like to love someone who keeps leaving…"></textarea>
+    </div>
+
+    <!-- Error -->
+    <div id="gen-error" class="notice error" style="display:none"></div>
+
+    <!-- Generate button -->
+    <button class="generate-btn" id="gen-btn" onclick="generate()" {% if not api_key_set or not has_anthropic %}disabled{% endif %}>
+      ✨ Generate Post
+    </button>
+
+    <!-- Preview of latest generated post -->
+    <div id="preview-box" class="preview-box">
+      <div class="preview-meta" id="preview-meta"></div>
+      <div id="preview-text"></div>
+      <div class="preview-actions">
+        <button class="preview-action-btn fav" id="preview-fav-btn" onclick="togglePreviewFav()">☆ Favorite</button>
+        <button class="preview-action-btn" onclick="generateAgain()">🔄 Regenerate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Saved posts ── -->
+  <div class="mp-saved">
+    <div class="mp-saved-header">
+      <h3>Saved Posts <span id="count-badge" style="font-size:13px;font-weight:400;color:var(--muted)">({{ saved | length }})</span></h3>
+      <div class="filter-row" id="filter-row">
+        <div class="filter-chip active" onclick="filterPosts('all', this)">All</div>
+        <div class="filter-chip" onclick="filterPosts('fav', this)">⭐ Favorites</div>
+        {% for style in attachment_styles %}
+        <div class="filter-chip" onclick="filterPosts('{{ style | replace("'", "\\'") }}', this)" data-style="{{ style }}">{{ style.split('/')[0].strip() }}</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div id="posts-list">
+      {% if not saved %}
+      <div class="empty-state">
+        <div class="icon">🎭</div>
+        <p>No modeled posts yet.<br>Generate your first one on the left.</p>
+      </div>
+      {% else %}
+      {% for p in saved %}
+      <div class="mp-post-card" id="mp-card-{{ p.id }}" data-style="{{ p.attachment_style }}" data-fav="{{ p.is_favorite }}">
+        <div class="mp-post-meta">
+          <span class="style-badge">{{ p.attachment_style }}</span>
+          <span class="topic-badge">{{ p.topic }}</span>
+          <span class="date-badge">{{ p.created_at[:10] }}</span>
+        </div>
+        <div class="mp-post-text" id="mp-text-{{ p.id }}">{{ p.post_text }}</div>
+        <div class="mp-post-actions">
+          <button class="mp-action-btn" onclick="toggleExpand({{ p.id }})">Read more</button>
+          <button class="mp-action-btn {% if p.is_favorite %}is-fav{% endif %}" id="mp-fav-{{ p.id }}"
+                  onclick="toggleFav({{ p.id }}, this)">{{ '⭐ Favorited' if p.is_favorite else '☆ Favorite' }}</button>
+          <button class="mp-action-btn del" onclick="deletePost({{ p.id }})">🗑 Delete</button>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+let selectedStyle = '{{ attachment_styles[0] | replace("'", "\\'") }}';
+let selectedTopic = '';
+let lastGenId = null;
+let lastGenStyle = '';
+let lastGenTopic = '';
+
+function selectStyle(el, style) {
+  document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedStyle = style;
+}
+
+function selectTopic(el, topic) {
+  // Toggle off if already selected
+  if (el.classList.contains('selected')) {
+    el.classList.remove('selected');
+    selectedTopic = '';
+    document.getElementById('topic-input').value = '';
+    return;
+  }
+  document.querySelectorAll('.topic-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedTopic = topic;
+  document.getElementById('topic-input').value = topic;
+}
+
+async function generate() {
+  const topicInput = document.getElementById('topic-input').value.trim();
+  const topic = topicInput || selectedTopic;
+  const errBox = document.getElementById('gen-error');
+  const btn = document.getElementById('gen-btn');
+
+  errBox.style.display = 'none';
+  if (!topic) {
+    errBox.textContent = 'Pick a topic or write your own above.';
+    errBox.style.display = '';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '✨ Writing…';
+
+  try {
+    const resp = await fetch('/modeled-posts/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attachment_style: selectedStyle, topic })
+    });
+    const data = await resp.json();
+    if (data.error) {
+      errBox.textContent = data.error;
+      errBox.style.display = '';
+    } else {
+      lastGenId = data.id;
+      lastGenStyle = selectedStyle;
+      lastGenTopic = topic;
+      showPreview(data.post_text, selectedStyle, topic);
+      prependCard(data.id, data.post_text, selectedStyle, topic, false);
+    }
+  } catch(e) {
+    errBox.textContent = 'Request failed: ' + e.message;
+    errBox.style.display = '';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '✨ Generate Post';
+}
+
+function showPreview(text, style, topic) {
+  const box = document.getElementById('preview-box');
+  document.getElementById('preview-meta').textContent = style + ' · ' + topic;
+  document.getElementById('preview-text').textContent = text;
+  const favBtn = document.getElementById('preview-fav-btn');
+  favBtn.textContent = '☆ Favorite';
+  favBtn.classList.remove('is-fav');
+  box.style.display = 'block';
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function togglePreviewFav() {
+  if (!lastGenId) return;
+  const btn = document.getElementById('preview-fav-btn');
+  const resp = await fetch('/modeled-posts/' + lastGenId + '/favorite', { method: 'POST' });
+  const data = await resp.json();
+  const isFav = !!data.is_favorite;
+  btn.textContent = isFav ? '⭐ Favorited' : '☆ Favorite';
+  btn.classList.toggle('is-fav', isFav);
+  // Also update the card in the list
+  const favCardBtn = document.getElementById('mp-fav-' + lastGenId);
+  if (favCardBtn) {
+    favCardBtn.textContent = isFav ? '⭐ Favorited' : '☆ Favorite';
+    favCardBtn.classList.toggle('is-fav', isFav);
+  }
+  const card = document.getElementById('mp-card-' + lastGenId);
+  if (card) card.dataset.fav = isFav ? '1' : '0';
+}
+
+function generateAgain() {
+  generate();
+}
+
+function prependCard(id, text, style, topic, isFav) {
+  const list = document.getElementById('posts-list');
+  // Remove empty state if present
+  const empty = list.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const card = document.createElement('div');
+  card.className = 'mp-post-card';
+  card.id = 'mp-card-' + id;
+  card.dataset.style = style;
+  card.dataset.fav = isFav ? '1' : '0';
+  card.innerHTML = `
+    <div class="mp-post-meta">
+      <span class="style-badge">${esc(style)}</span>
+      <span class="topic-badge">${esc(topic)}</span>
+      <span class="date-badge">Today</span>
+    </div>
+    <div class="mp-post-text" id="mp-text-${id}">${esc(text)}</div>
+    <div class="mp-post-actions">
+      <button class="mp-action-btn" onclick="toggleExpand(${id})">Read more</button>
+      <button class="mp-action-btn ${isFav ? 'is-fav' : ''}" id="mp-fav-${id}"
+              onclick="toggleFav(${id}, this)">${isFav ? '⭐ Favorited' : '☆ Favorite'}</button>
+      <button class="mp-action-btn del" onclick="deletePost(${id})">🗑 Delete</button>
+    </div>`;
+  list.insertBefore(card, list.firstChild);
+  updateCount(1);
+}
+
+function esc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleExpand(id) {
+  const el = document.getElementById('mp-text-' + id);
+  const btn = el.nextElementSibling.querySelector('.mp-action-btn');
+  const expanded = el.classList.toggle('expanded');
+  btn.textContent = expanded ? 'Show less' : 'Read more';
+}
+
+async function toggleFav(id, btn) {
+  const resp = await fetch('/modeled-posts/' + id + '/favorite', { method: 'POST' });
+  const data = await resp.json();
+  const isFav = !!data.is_favorite;
+  btn.textContent = isFav ? '⭐ Favorited' : '☆ Favorite';
+  btn.classList.toggle('is-fav', isFav);
+  const card = document.getElementById('mp-card-' + id);
+  if (card) card.dataset.fav = isFav ? '1' : '0';
+  if (lastGenId === id) {
+    const previewBtn = document.getElementById('preview-fav-btn');
+    previewBtn.textContent = isFav ? '⭐ Favorited' : '☆ Favorite';
+    previewBtn.classList.toggle('is-fav', isFav);
+  }
+}
+
+async function deletePost(id) {
+  if (!confirm('Delete this modeled post?')) return;
+  const resp = await fetch('/modeled-posts/' + id + '/delete', { method: 'POST' });
+  const data = await resp.json();
+  if (data.ok) {
+    const card = document.getElementById('mp-card-' + id);
+    card.style.opacity = '0';
+    card.style.transition = 'opacity .3s';
+    setTimeout(() => {
+      card.remove();
+      updateCount(-1);
+      if (!document.querySelector('.mp-post-card')) {
+        document.getElementById('posts-list').innerHTML =
+          '<div class="empty-state"><div class="icon">🎭</div><p>No modeled posts yet.<br>Generate your first one on the left.</p></div>';
+      }
+    }, 300);
+    if (lastGenId === id) {
+      document.getElementById('preview-box').style.display = 'none';
+      lastGenId = null;
+    }
+  }
+}
+
+function updateCount(delta) {
+  const badge = document.getElementById('count-badge');
+  const current = parseInt(badge.textContent.replace(/\D/g, '')) || 0;
+  badge.textContent = '(' + Math.max(0, current + delta) + ')';
+}
+
+function filterPosts(filter, chipEl) {
+  document.querySelectorAll('#filter-row .filter-chip').forEach(c => c.classList.remove('active'));
+  chipEl.classList.add('active');
+  document.querySelectorAll('.mp-post-card').forEach(card => {
+    if (filter === 'all') {
+      card.style.display = '';
+    } else if (filter === 'fav') {
+      card.style.display = card.dataset.fav === '1' ? '' : 'none';
+    } else {
+      card.style.display = card.dataset.style === filter ? '' : 'none';
+    }
+  });
+}
+</script>
+{% endblock %}

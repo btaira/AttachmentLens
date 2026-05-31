@@ -146,6 +146,8 @@
 
   // ── CONFIG ──────────────────────────────────────
   const TARGET = 20;  // posts to collect
+  const SCROLL_WAIT = 5000;  // ms to wait after each scroll (increase if slow connection)
+  const MAX_STALE = 12;      // stale rounds before giving up (more = more patient)
   // ────────────────────────────────────────────────
 
   let collected = [], seen = new Set(), staleRounds = 0;
@@ -159,8 +161,24 @@
     await wait(1500);
   }
 
+  // Returns post body elements using multiple selectors for resilience
+  function getPostBodies() {
+    // Primary: data-ad-comet-preview="message"
+    let nodes = [...document.querySelectorAll('[data-ad-comet-preview="message"]')];
+    // Fallback: data-ad-preview="message"
+    if (nodes.length === 0)
+      nodes = [...document.querySelectorAll('[data-ad-preview="message"]')];
+    // Fallback: look inside role=article for substantial dir=auto text blocks
+    if (nodes.length === 0) {
+      nodes = [...document.querySelectorAll('[role="article"]')]
+        .map(art => art.querySelector('[dir="auto"]'))
+        .filter(Boolean);
+    }
+    return nodes;
+  }
+
   function harvest() {
-    for (let body of document.querySelectorAll('[data-ad-comet-preview="message"]')) {
+    for (let body of getPostBodies()) {
       if (collected.length >= TARGET) break;
       [...body.querySelectorAll('[role="button"]')]
         .filter(el => el.innerText?.trim() === 'See more')
@@ -250,10 +268,12 @@
     const prev = collected.length;
     harvest(); await wait(1000); harvest();
     if (collected.length === prev) {
-      if (++staleRounds >= 5) { console.log('⚠️ Page exhausted.'); break; }
+      staleRounds++;
+      console.log('⏳ No new posts this round (' + staleRounds + '/' + MAX_STALE + ' stale)');
+      if (staleRounds >= MAX_STALE) { console.log('⚠️ Page exhausted after ' + MAX_STALE + ' stale rounds.'); break; }
     } else staleRounds = 0;
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    await wait(3000);
+    await wait(SCROLL_WAIT);
   }
 
   if (!collected.length) { console.log('❌ Nothing found.'); return; }
@@ -330,6 +350,22 @@
     <!-- Paste box -->
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:4px">Paste JSON <span style="font-weight:400;opacity:.6">(auto-filled above, or paste manually)</span></div>
     <textarea id="json_data" placeholder='Paste JSON here, or use "Copy from window.derekPosts" above…'></textarea>
+
+    <!-- Backup & Restore -->
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Backup &amp; Restore</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <a href="/backup" class="action-btn" style="width:100%;justify-content:flex-start;text-decoration:none">
+          💾 Download Backup (JSON)
+        </a>
+        <div class="btn-label" style="text-align:left;padding-left:4px">Downloads all posts, insights, analyses &amp; modeled posts as a single JSON file</div>
+        <input type="file" id="restore-file" accept=".json" style="display:none" onchange="doRestore(this)">
+        <button class="action-btn" onclick="document.getElementById('restore-file').click()" style="width:100%;justify-content:flex-start;background:var(--surface2);border:1px solid var(--border)">
+          📂 Restore from Backup
+        </button>
+        <div class="btn-label" id="restore-status" style="text-align:left;padding-left:4px">Choose a previously downloaded backup JSON file — duplicates are skipped</div>
+      </div>
+    </div>
 
     <!-- Danger zone -->
     <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
@@ -416,6 +452,26 @@ async function clearAllPosts() {
     }
   } catch(e) { errorBox.textContent = 'Error: ' + e.message; errorBox.style.display = ''; }
   btn.disabled = false; btn.innerHTML = '🗑 Clear All Posts';
+}
+
+async function doRestore(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('restore-status');
+  status.textContent = 'Reading file…';
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const resp = await fetch('/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await resp.json();
+    if (result.error) { status.textContent = '✗ ' + result.error; }
+    else { status.textContent = `✓ Restored ${result.imported} posts (${result.skipped} already existed)`; }
+  } catch(e) { status.textContent = '✗ Failed: ' + e.message; }
+  input.value = '';
 }
 
 async function doImport() {

@@ -90,6 +90,45 @@
   }
   .fav-post-btn:hover { border-color: var(--healing); color: var(--healing); }
   .fav-post-btn.is-fav { background: rgba(247,201,106,.15); border-color: var(--healing); color: var(--healing); }
+
+  /* Category + Tags row */
+  .meta-edit-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 0; border-top: 1px solid var(--border); margin-top: 10px;
+  }
+  .meta-edit-row label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+  .cat-select {
+    padding: 5px 10px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .cat-select:focus { outline: none; border-color: var(--accent); }
+  .read-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .read-btn:hover { border-color: var(--secure); color: var(--secure); }
+  .read-btn.is-read { background: rgba(93,217,156,.12); border-color: var(--secure); color: var(--secure); }
+  .save-indicator { font-size: 11px; color: var(--secure); transition: opacity .3s; opacity: 0; }
+
+  /* Tags */
+  .tags-wrap { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tag-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 20px;
+    background: rgba(124,106,247,.15); border: 1px solid var(--accent);
+    color: var(--accent); font-size: 11px; font-weight: 700;
+  }
+  .tag-chip button {
+    background: none; border: none; color: var(--accent); cursor: pointer;
+    font-size: 12px; padding: 0 2px; line-height: 1;
+  }
+  .tag-add-input {
+    padding: 3px 8px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; color: var(--text); font-size: 12px; width: 120px;
+  }
+  .tag-add-input:focus { outline: none; border-color: var(--accent); }
 </style>
 
 <!-- Floating Save to Insights button (appears on text selection) -->
@@ -124,6 +163,29 @@
       <span id="fav-star">{{ '⭐' if post.is_favorite else '☆' }}</span>
       <span id="fav-label">{{ 'Favorited' if post.is_favorite else 'Add to Favorites' }}</span>
     </button>
+  </div>
+
+  <!-- Category override + Tags + Read status -->
+  <div class="meta-edit-row">
+    <label>Category:</label>
+    <select class="cat-select" id="cat-select" onchange="updateCategory(this.value)">
+      {% set all_cats = ['Anxious / Preoccupied', 'Avoidant / Dismissive', 'Fearful / Disorganized', 'Secure', 'Healing & Growth', 'General Relationship'] %}
+      {% for c in all_cats %}
+      <option value="{{ c }}" {% if post.category == c %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+
+    <label style="margin-left:8px">Tags:</label>
+    <div class="tags-wrap" id="tags-wrap">
+      <!-- filled by JS -->
+    </div>
+    <input class="tag-add-input" id="tag-input" placeholder="+ add tag"
+           onkeydown="if(event.key==='Enter'){addTag();event.preventDefault()}">
+
+    <button class="read-btn {{ 'is-read' if post.is_read }}" id="read-btn" onclick="toggleRead({{ post.id }}, this)">
+      {{ '✓ Read' if post.is_read else '○ Unread' }}
+    </button>
+    <span class="save-indicator" id="cat-save-indicator">✓ Saved</span>
   </div>
 
   <!-- Mode tabs: View / Edit -->
@@ -307,9 +369,13 @@ document.addEventListener('mouseup', function(e) {
       lastSelectedText = text;
       const range = sel.getRangeAt(0);
       const rect = range.getBoundingClientRect();
-      // Position button just below the selection
-      floatBtn.style.top  = (rect.bottom + window.scrollY + 10) + 'px';
-      floatBtn.style.left = Math.max(8, Math.min(rect.left + window.scrollX, window.innerWidth - 220)) + 'px';
+      // Position: to the LEFT of the selection, ~6 lines below where it starts
+      const LINE_H = 30; // approx px per line (17px font * 1.9 line-height ≈ 32, use 30 for natural feel)
+      const BTN_W  = 175; // approx button width
+      const top  = rect.top  + window.scrollY + LINE_H * 6;
+      const left = Math.max(4, rect.left + window.scrollX - BTN_W - 14);
+      floatBtn.style.top  = top  + 'px';
+      floatBtn.style.left = left + 'px';
       floatBtn.style.display = 'inline-flex';
       floatBtn.innerHTML = '✨ Save to Insights';
     } else {
@@ -344,6 +410,68 @@ async function saveInsight() {
   lastSelectedText = '';
   window.getSelection()?.removeAllRanges();
 }
+
+// ── Category override ─────────────────────────────────────
+async function updateCategory(cat) {
+  const ind = document.getElementById('cat-save-indicator');
+  await fetch('/post/{{ post.id }}/category', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category: cat })
+  });
+  ind.style.opacity = '1';
+  setTimeout(() => ind.style.opacity = '0', 1800);
+}
+
+// ── Tags ──────────────────────────────────────────────────
+let currentTags = {{ (post.tags or '[]') | safe }};
+if (!Array.isArray(currentTags)) currentTags = [];
+
+function renderTags() {
+  const wrap = document.getElementById('tags-wrap');
+  wrap.innerHTML = currentTags.map((t, i) =>
+    `<span class="tag-chip">${esc(t)}<button onclick="removeTag(${i})" title="Remove">×</button></span>`
+  ).join('');
+}
+
+async function addTag() {
+  const inp = document.getElementById('tag-input');
+  const val = inp.value.trim();
+  if (!val || currentTags.includes(val)) { inp.value = ''; return; }
+  currentTags.push(val);
+  inp.value = '';
+  renderTags();
+  await saveTags();
+}
+
+async function removeTag(idx) {
+  currentTags.splice(idx, 1);
+  renderTags();
+  await saveTags();
+}
+
+async function saveTags() {
+  const ind = document.getElementById('cat-save-indicator');
+  await fetch('/post/{{ post.id }}/tags', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tags: currentTags })
+  });
+  ind.style.opacity = '1';
+  setTimeout(() => ind.style.opacity = '0', 1800);
+}
+
+// ── Read / Unread ─────────────────────────────────────────
+async function toggleRead(id, btn) {
+  const resp = await fetch('/post/' + id + '/read', { method: 'POST' });
+  const data = await resp.json();
+  if (data.is_read !== undefined) {
+    const isRead = !!data.is_read;
+    btn.textContent = isRead ? '✓ Read' : '○ Unread';
+    btn.classList.toggle('is-read', isRead);
+  }
+}
+
+// Init tags on load
+renderTags();
 
 async function toggleFav(id, btn) {
   const resp = await fetch('/post/' + id + '/favorite', { method: 'POST' });

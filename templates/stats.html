@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .stats-page { max-width: 980px; margin: 0 auto; padding: 32px 24px 60px; }
+  .stats-page h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .stats-page .sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-bottom: 32px; }
+  .kpi-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; text-align: center;
+  }
+  .kpi-card .num { font-size: 32px; font-weight: 800; color: var(--accent); }
+  .kpi-card .label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  @media (max-width: 680px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 22px;
+  }
+  .chart-card h3 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 16px; }
+
+  .top-posts { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
+  .top-posts h3 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 14px; }
+  .top-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .top-row:last-child { border-bottom: none; }
+  .top-rank { font-size: 18px; font-weight: 800; color: var(--muted); min-width: 28px; }
+  .top-text { font-size: 13px; color: var(--text); flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .top-meta { font-size: 11px; color: var(--muted); white-space: nowrap; text-align: right; }
+</style>
+
+<div class="stats-page">
+  <h1>📊 Stats & Progress</h1>
+  <div class="sub">A snapshot of your reading and growth journey.</div>
+
+  <!-- KPI cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="num">{{ total }}</div>
+      <div class="label">Total Posts</div>
+    </div>
+    <div class="kpi-card">
+      <div class="num" style="color:var(--accent)">{{ total - read_count }}</div>
+      <div class="label">Unread</div>
+    </div>
+    <div class="kpi-card">
+      <div class="num" style="color:var(--secure)">{{ read_count }}</div>
+      <div class="label">Read</div>
+    </div>
+    <div class="kpi-card">
+      <div class="num" style="color:var(--healing)">{{ fav_count }}</div>
+      <div class="label">Favorites</div>
+    </div>
+    <div class="kpi-card">
+      <div class="num" style="color:var(--revised-badge)">{{ revised_count }}</div>
+      <div class="label">Personalized</div>
+    </div>
+    <div class="kpi-card">
+      <div class="num" style="color:var(--accent2)">{{ insight_count }}</div>
+      <div class="label">Insights Saved</div>
+    </div>
+    <div class="kpi-card">
+      <div class="num" style="color:var(--fearful)">{{ analysis_count }}</div>
+      <div class="label">AI Analyses</div>
+    </div>
+    <div class="kpi-card">
+      <div class="num" style="color:var(--avoidant)">{{ modeled_count }}</div>
+      <div class="label">Modeled Posts</div>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Attachment Style Breakdown</h3>
+      <canvas id="cat-chart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Read vs Unread</h3>
+      <canvas id="read-chart" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-grid" style="grid-template-columns:1fr">
+    <div class="chart-card">
+      <h3>Posts Imported Over Time</h3>
+      <canvas id="timeline-chart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- Top posts -->
+  <div class="top-posts">
+    <h3>🔥 Top 10 Posts by Popularity</h3>
+    {% for p in top_posts %}
+    <a href="/post/{{ p.id }}" style="text-decoration:none;color:inherit;display:block">
+      <div class="top-row">
+        <div class="top-rank">#{{ loop.index }}</div>
+        <div class="top-text">{{ p.original_text[:160] }}…</div>
+        <div class="top-meta">
+          {% set cat_key = p.category.split('/')[0].strip().split(' ')[0] %}
+          <span class="cat-badge cat-{{ cat_key }}" style="font-size:10px">{{ p.category }}</span><br>
+          <span style="color:var(--avoidant)">👍 {{ p.likes or 0 }}</span>
+          <span style="color:var(--muted)"> · 💬 {{ p.comments or 0 }}</span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const COLORS = {
+  'Anxious': '#f77c6a', 'Avoidant': '#6ab4f7', 'Fearful': '#c96af7',
+  'Secure': '#5dd99c', 'Healing': '#f7c96a', 'General': '#8a8fa8'
+};
+
+// Category donut
+const catData = {{ cats | tojson }};
+new Chart(document.getElementById('cat-chart'), {
+  type: 'doughnut',
+  data: {
+    labels: catData.map(c => c.category),
+    datasets: [{
+      data: catData.map(c => c.cnt),
+      backgroundColor: catData.map(c => {
+        const key = c.category.split('/')[0].trim().split(' ')[0];
+        return COLORS[key] || '#8a8fa8';
+      }),
+      borderColor: '#1a1d27', borderWidth: 2,
+    }]
+  },
+  options: {
+    plugins: { legend: { labels: { color: '#e8eaf6', font: { size: 12 } } } },
+    cutout: '60%'
+  }
+});
+
+// Read donut
+new Chart(document.getElementById('read-chart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Read', 'Unread'],
+    datasets: [{
+      data: [{{ read_count }}, {{ total - read_count }}],
+      backgroundColor: ['#5dd99c', '#7c6af7'],
+      borderColor: '#1a1d27', borderWidth: 2,
+    }]
+  },
+  options: {
+    plugins: { legend: { labels: { color: '#e8eaf6', font: { size: 12 } } } },
+    cutout: '60%'
+  }
+});
+
+// Timeline line chart
+const tl = {{ timeline | tojson }};
+new Chart(document.getElementById('timeline-chart'), {
+  type: 'bar',
+  data: {
+    labels: tl.map(r => r.day),
+    datasets: [{
+      label: 'Posts imported',
+      data: tl.map(r => r.cnt),
+      backgroundColor: 'rgba(124,106,247,.5)',
+      borderColor: '#7c6af7', borderWidth: 1, borderRadius: 4,
+    }]
+  },
+  options: {
+    scales: {
+      x: { ticks: { color: '#8a8fa8', maxRotation: 45 }, grid: { color: '#2e3147' } },
+      y: { ticks: { color: '#8a8fa8' }, grid: { color: '#2e3147' }, beginAtZero: true }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+</script>
+{% endblock %}

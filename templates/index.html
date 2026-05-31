@@ -75,6 +75,15 @@
 
   .flash { background: rgba(93,217,156,.12); border: 1px solid var(--secure); color: var(--secure); border-radius: 6px; padding: 8px 14px; margin-bottom: 16px; font-size: 13px; }
   .search-result-note { font-size: 13px; color: var(--text); margin-bottom: 12px; opacity: .7; }
+  .read-filter-bar { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .rf-chip {
+    padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted); font-size: 12px;
+    cursor: pointer; transition: all .15s;
+  }
+  .rf-chip:hover { border-color: var(--accent); color: var(--text); }
+  .rf-chip.active { background: rgba(124,106,247,.15); border-color: var(--accent); color: var(--accent); }
+  .unread-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 4px; vertical-align: middle; }
 </style>
 
 <div class="container">
@@ -183,6 +192,13 @@
       </div>
       {% endif %}
 
+      <!-- Read/Unread filter -->
+      <div class="read-filter-bar">
+        <div class="rf-chip active" onclick="filterRead('all', this)">All</div>
+        <div class="rf-chip" onclick="filterRead('unread', this)">● Unread</div>
+        <div class="rf-chip" onclick="filterRead('read', this)">✓ Read</div>
+      </div>
+
       <!-- Sort bar -->
       <div class="sort-bar">
         <label>Sort by:</label>
@@ -222,7 +238,8 @@
                 data-popularity="{{ p.popularity or 0 }}"
                 data-likes="{{ p.likes or 0 }}"
                 data-comments="{{ p.comments or 0 }}"
-                data-id="{{ p.id }}">
+                data-id="{{ p.id }}"
+                data-read="{{ '1' if p.is_read else '0' }}">
               <td onclick="event.stopPropagation()" style="text-align:center;padding:6px 4px">
                 <button class="fav-btn" onclick="toggleFav({{ p.id }}, this)" title="{{ 'Remove favorite' if p.is_favorite else 'Add to favorites' }}">{{ '⭐' if p.is_favorite else '☆' }}</button>
               </td>
@@ -250,8 +267,9 @@
                 {% endif %}
               </td>
               <td>
-                {% if p.is_revised %}<span class="revised-badge">✏ Personalized</span>
-                {% else %}<span class="original-badge">Original</span>{% endif %}
+                {% if p.is_read %}<span style="font-size:11px;color:var(--secure);font-weight:700">✓ Read</span>
+                {% else %}<span style="font-size:11px;color:var(--accent)">● Unread</span>{% endif %}
+                {% if p.is_revised %}<br><span class="revised-badge" style="margin-top:3px;display:inline-block">✏</span>{% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -297,5 +315,16 @@ function sortTable(by) {
   const sel = document.getElementById('sort-select');
   if (saved && sel) { sel.value = saved; sortTable(saved); }
 })();
+
+function filterRead(filter, chipEl) {
+  document.querySelectorAll('.rf-chip').forEach(c => c.classList.remove('active'));
+  chipEl.classList.add('active');
+  const rows = document.querySelectorAll('#library-tbody tr');
+  rows.forEach(row => {
+    if (filter === 'all') row.style.display = '';
+    else if (filter === 'read') row.style.display = row.dataset.read === '1' ? '' : 'none';
+    else row.style.display = row.dataset.read === '0' ? '' : 'none';
+  });
+}
 </script>
 {% endblock %}

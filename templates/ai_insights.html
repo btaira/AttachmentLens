@@ -311,6 +311,14 @@
     {% endfor %}
   </div>
 
+  <!-- What's on your mind -->
+  <div class="card-warm" style="margin-bottom:16px">
+    <div class="section-label">💭 What's on your mind right now? <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--muted)">(optional — included in your analysis)</span></div>
+    <textarea id="current-feelings" class="prompt-textarea" rows="3"
+      style="font-family:'Nunito',sans-serif;font-size:14px;line-height:1.7"
+      placeholder="e.g. I've been feeling really disconnected from my partner lately and keep catching myself waiting for them to reach out first. I've also been noticing old patterns coming up with my family over the holidays..."></textarea>
+  </div>
+
   <!-- Analyze -->
   <div class="analyze-section">
     <button class="btn-analyze" id="analyze-btn" onclick="runAnalysis()">
@@ -463,11 +471,12 @@ async function runAnalysis() {
   btn.innerHTML = '<span class="spinner"></span> Thinking…';
 
   const prompt = document.getElementById('therapist-prompt')?.value?.trim() || '';
+  const current_feelings = document.getElementById('current-feelings')?.value?.trim() || '';
 
   try {
     const resp = await fetch('/ai-insights/analyze', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, current_feelings })
     });
     const data = await resp.json();
     if (data.error) {

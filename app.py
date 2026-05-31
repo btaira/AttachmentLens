@@ -113,6 +113,8 @@ def init_db():
             ('is_favorite', 'INTEGER DEFAULT 0'),
             ('likes', 'INTEGER DEFAULT 0'),
             ('comments', 'INTEGER DEFAULT 0'),
+            ('is_read', 'INTEGER DEFAULT 0'),
+            ('tags', "TEXT DEFAULT ''"),
         ]:
             try:
                 conn.execute(f'ALTER TABLE posts ADD COLUMN {col} {defn}')
@@ -135,6 +137,17 @@ def init_db():
                 created_at TEXT DEFAULT (datetime('now'))
             )
         ''')
+        # Modeled posts — AI-generated in Derek Hart's style
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS modeled_posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_text TEXT NOT NULL,
+                attachment_style TEXT,
+                topic TEXT,
+                is_favorite INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        ''')
         conn.commit()
 
 
@@ -150,26 +163,28 @@ def set_setting(key, value):
         conn.commit()
 
 
-DEFAULT_THERAPIST_PROMPT = """You are a warm, insightful therapist specializing in attachment theory and relationship psychology. I'm going to share a collection of passages that someone highlighted while reading about attachment styles and relationships — things that resonated with them deeply enough to save.
+DEFAULT_THERAPIST_PROMPT = """You are a warm, insightful therapist specializing in attachment theory and relationship psychology. I'm going to share a collection of passages someone highlighted while reading about attachment and relationships — things that resonated deeply enough to save. For many of these, they've also written their own personal thoughts and feelings in response to what they read.
+
+**The personal thoughts and feelings they've written are the most important input.** Treat them as direct windows into their inner world — weigh them heavily alongside the highlights themselves. If they've shared what something brought up for them, that is primary data for your analysis.
 
 Your task is to provide a compassionate, personalized analysis. Please structure your response as follows:
 
-**What your highlights reveal about you**
-Look across everything highlighted and identify the 2–3 most prominent emotional themes or patterns. What keeps coming up? What are they drawn to, and what might that reflect about their inner world or relational history?
+**What your highlights — and your own words — reveal about you**
+Look across everything, especially the personal reflections they've written. What themes keep surfacing? What emotional patterns are showing up in both what they chose to highlight and what they said about it?
 
 **Your attachment style — what the evidence suggests**
-Based on the specific content they were drawn to (not a generic description), what does their pattern of highlights suggest about how they tend to show up in relationships? Be specific and grounded in what they actually highlighted.
+Based on their highlights and personal reflections together (not a generic description), what does the pattern suggest about how they show up in relationships? Be specific and grounded in their actual words.
 
 **Your strengths and self-awareness**
-What do their highlights reveal that's already working in their favor? What self-awareness is already present that they can build on?
+What do their highlights and reflections reveal that's already working in their favor? What self-awareness is clearly present that they can build on?
 
 **Areas inviting deeper exploration**
-Gently name 2–3 themes that seem to be asking for more attention — patterns, wounds, or beliefs that their highlights point to but that may still be unresolved. Be specific, not generic.
+Gently name 2–3 themes that seem to be asking for more attention — drawn from both the passages they saved and the feelings they expressed. Be specific, not generic.
 
 **Suggested next steps**
-Offer 3 concrete, actionable suggestions — things they can actually do this week to begin working on what the highlights reveal. These should feel grounded and accessible, not overwhelming.
+Offer 3 concrete, actionable suggestions grounded in what they actually shared — things they can do this week. Make them feel accessible, not overwhelming.
 
-Speak directly to the person using "you." Be specific to what they actually highlighted — avoid vague platitudes. Lead with warmth and curiosity, not diagnosis."""
+Speak directly to the person using "you." Reference their specific words and reflections where possible. Lead with warmth and curiosity, not diagnosis."""
 
 
 def first_sentence(text):
@@ -532,6 +547,7 @@ def ai_analyze():
 
     data = request.get_json(force=True) or {}
     prompt = data.get('prompt', '').strip() or DEFAULT_THERAPIST_PROMPT
+    current_feelings = (data.get('current_feelings') or '').strip()
 
     with get_db() as conn:
         insight_rows = conn.execute('''
@@ -552,15 +568,23 @@ def ai_analyze():
     parts = []
     for idx, row in enumerate(insight_rows, 1):
         cat = row['category'] or 'General'
-        entry = f"[{idx}] ({cat})\n\"{row['highlighted_text']}\""
+        entry = f"[{idx}] ({cat})\nHighlighted: \"{row['highlighted_text']}\""
         if row['my_thoughts'] and row['my_thoughts'].strip():
-            entry += f"\n  My reflection: {row['my_thoughts'].strip()}"
+            entry += f"\n\nMY OWN THOUGHTS & FEELINGS ABOUT THIS:\n{row['my_thoughts'].strip()}"
         parts.append(entry)
 
     user_message = (
         f"Here are {len(insight_rows)} passages I highlighted while reading about attachment and relationships:\n\n"
         + "\n\n".join(parts)
     )
+
+    # Append current feelings/thoughts if provided
+    if current_feelings:
+        user_message += (
+            "\n\n---\nWhat I'm experiencing right now — my current thoughts and feelings:\n"
+            + current_feelings
+            + "\n\nPlease weave this current context into your analysis."
+        )
 
     # Append past feedback as context
     if past_feedback:
@@ -613,6 +637,270 @@ def save_analysis_feedback(analysis_id):
 def delete_analysis(analysis_id):
     with get_db() as conn:
         conn.execute('DELETE FROM ai_analyses WHERE id = ?', (analysis_id,))
+        conn.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/post/<int:post_id>/category', methods=['POST'])
+def update_category(post_id):
+    data = request.get_json(force=True) or {}
+    category = (data.get('category') or '').strip()
+    if not category:
+        return jsonify({'error': 'No category'}), 400
+    with get_db() as conn:
+        conn.execute('UPDATE posts SET category = ? WHERE id = ?', (category, post_id))
+        conn.commit()
+    return jsonify({'ok': True, 'category': category})
+
+
+@app.route('/post/<int:post_id>/tags', methods=['POST'])
+def update_tags(post_id):
+    data = request.get_json(force=True) or {}
+    tags = data.get('tags', [])
+    if not isinstance(tags, list):
+        tags = []
+    with get_db() as conn:
+        conn.execute('UPDATE posts SET tags = ? WHERE id = ?', (json.dumps(tags), post_id))
+        conn.commit()
+    return jsonify({'ok': True, 'tags': tags})
+
+
+@app.route('/post/<int:post_id>/read', methods=['POST'])
+def toggle_read(post_id):
+    with get_db() as conn:
+        current = conn.execute('SELECT is_read FROM posts WHERE id = ?', (post_id,)).fetchone()
+        if current:
+            new_val = 0 if current['is_read'] else 1
+            conn.execute('UPDATE posts SET is_read = ? WHERE id = ?', (new_val, post_id))
+            conn.commit()
+            return jsonify({'is_read': new_val})
+    return jsonify({'error': 'not found'}), 404
+
+
+@app.route('/stats')
+def stats_page():
+    with get_db() as conn:
+        cats = conn.execute(
+            'SELECT category, COUNT(*) as cnt FROM posts GROUP BY category ORDER BY cnt DESC'
+        ).fetchall()
+        total = conn.execute('SELECT COUNT(*) as n FROM posts').fetchone()['n']
+        read_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_read = 1').fetchone()['n']
+        revised_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_revised = 1').fetchone()['n']
+        fav_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_favorite = 1').fetchone()['n']
+        insight_count = conn.execute('SELECT COUNT(*) as n FROM insights').fetchone()['n']
+        analysis_count = conn.execute('SELECT COUNT(*) as n FROM ai_analyses').fetchone()['n']
+        modeled_count = conn.execute('SELECT COUNT(*) as n FROM modeled_posts').fetchone()['n']
+        # Posts imported over time (by imported_at date)
+        timeline = conn.execute(
+            "SELECT substr(imported_at, 1, 10) as day, COUNT(*) as cnt FROM posts GROUP BY day ORDER BY day"
+        ).fetchall()
+        # Top posts by popularity
+        top_posts = conn.execute(
+            'SELECT id, original_text, category, popularity, likes, comments FROM posts ORDER BY popularity DESC LIMIT 10'
+        ).fetchall()
+    return render_template('stats.html',
+        cats=cats, total=total, read_count=read_count,
+        revised_count=revised_count, fav_count=fav_count,
+        insight_count=insight_count, analysis_count=analysis_count,
+        modeled_count=modeled_count, timeline=timeline, top_posts=top_posts,
+    )
+
+
+@app.route('/backup')
+def backup():
+    with get_db() as conn:
+        posts = [dict(r) for r in conn.execute('SELECT * FROM posts').fetchall()]
+        insights = [dict(r) for r in conn.execute('SELECT * FROM insights').fetchall()]
+        ai_analyses = [dict(r) for r in conn.execute('SELECT * FROM ai_analyses').fetchall()]
+        modeled = [dict(r) for r in conn.execute('SELECT * FROM modeled_posts').fetchall()]
+    payload = json.dumps({
+        'version': 1,
+        'exported_at': datetime.utcnow().isoformat(),
+        'posts': posts,
+        'insights': insights,
+        'ai_analyses': ai_analyses,
+        'modeled_posts': modeled,
+    }, indent=2)
+    from flask import Response
+    return Response(
+        payload,
+        mimetype='application/json',
+        headers={'Content-Disposition': 'attachment; filename=attachmentlens_backup.json'}
+    )
+
+
+@app.route('/restore', methods=['POST'])
+def restore():
+    try:
+        body = request.get_json(force=True)
+        if not body or 'posts' not in body:
+            return jsonify({'error': 'Invalid backup file — missing posts key.'}), 400
+        imported = 0
+        skipped = 0
+        with get_db() as conn:
+            for p in body.get('posts', []):
+                text = (p.get('original_text') or '').strip()
+                if not text:
+                    skipped += 1
+                    continue
+                exists = conn.execute('SELECT 1 FROM posts WHERE original_text = ?', (text,)).fetchone()
+                if exists:
+                    skipped += 1
+                    continue
+                conn.execute('''INSERT INTO posts
+                    (original_text, revised_text, date_label, post_url, category, is_revised,
+                     popularity, imported_at, is_favorite, likes, comments, is_read, tags)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                    (text, p.get('revised_text'), p.get('date_label'), p.get('post_url'),
+                     p.get('category', DEFAULT_CATEGORY), p.get('is_revised', 0),
+                     p.get('popularity', 0), p.get('imported_at'), p.get('is_favorite', 0),
+                     p.get('likes', 0), p.get('comments', 0), p.get('is_read', 0),
+                     p.get('tags', '')))
+                imported += 1
+            conn.commit()
+        return jsonify({'imported': imported, 'skipped': skipped})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/bulk-label')
+def bulk_label():
+    with get_db() as conn:
+        posts = conn.execute(
+            'SELECT id, original_text, category, is_read, is_favorite, imported_at FROM posts ORDER BY id DESC'
+        ).fetchall()
+    return render_template('bulk_label.html', posts=posts,
+                           categories=list(CATEGORIES.keys()) + [DEFAULT_CATEGORY])
+
+
+SUGGESTED_TOPICS = [
+    "The anxious spiral — and how to find your way out",
+    "What avoidants are really afraid of",
+    "When love feels like danger",
+    "Creating safety in your own nervous system",
+    "The push-pull dynamic, explained from the inside",
+    "Reparenting the part of you that never felt enough",
+    "Breaking generational patterns in love",
+    "What earned security actually looks like",
+    "Nervous system regulation in relationships",
+    "Learning to receive love without bracing for loss",
+    "The difference between connection and enmeshment",
+    "Healing doesn't mean never getting triggered",
+    "When you're the one who always reaches first",
+    "Grieving the relationship you never had as a child",
+    "Building trust after betrayal",
+]
+
+MODELED_PERSONA_SYSTEM = """You are Derek Hart, a relationship writer and attachment coach with a warm, poetic voice. You write directly to people who are quietly struggling — people who recognize themselves in what you describe. Your tone is intimate, never clinical. You speak as someone who has done their own work and knows the terrain.
+
+Your style:
+- Short, punchy opening lines that immediately name something true
+- Personal and direct — you address the reader as "you"
+- Paragraphs that breathe — often 1–3 sentences, with intentional white space
+- You name emotions precisely without diagrams or bullet points
+- You alternate between validation and gentle challenge
+- You close posts with something quietly hopeful — not toxic positivity, but real possibility
+- You never lecture. You witness.
+- Length: 150–350 words. No headers, no lists. Just prose with pauses.
+
+Example posts from your library (for voice and style reference):
+{examples}
+"""
+
+
+@app.route('/modeled-posts')
+def modeled_posts_page():
+    with get_db() as conn:
+        saved = conn.execute(
+            'SELECT * FROM modeled_posts ORDER BY id DESC'
+        ).fetchall()
+        total_posts = conn.execute('SELECT COUNT(*) as n FROM posts').fetchone()['n']
+    api_key = get_setting('anthropic_api_key', '')
+    return render_template(
+        'modeled_posts.html',
+        saved=saved,
+        total_posts=total_posts,
+        api_key_set=bool(api_key),
+        suggested_topics=SUGGESTED_TOPICS,
+        attachment_styles=list(CATEGORIES.keys()) + ['General Relationship'],
+        has_anthropic=_has_anthropic,
+    )
+
+
+@app.route('/modeled-posts/generate', methods=['POST'])
+def modeled_posts_generate():
+    if not _has_anthropic:
+        return jsonify({'error': 'anthropic package not installed. Run: pip install anthropic'}), 500
+    api_key = get_setting('anthropic_api_key', '')
+    if not api_key:
+        return jsonify({'error': 'No API key set. Add it on the AI Insights page first.'}), 400
+
+    data = request.get_json(force=True) or {}
+    attachment_style = (data.get('attachment_style') or 'General Relationship').strip()
+    topic = (data.get('topic') or '').strip()
+    if not topic:
+        return jsonify({'error': 'Please enter a topic.'}), 400
+
+    # Pull top posts as voice examples (up to 12, sorted by popularity)
+    with get_db() as conn:
+        example_rows = conn.execute(
+            'SELECT original_text FROM posts ORDER BY popularity DESC, id DESC LIMIT 12'
+        ).fetchall()
+
+    if not example_rows:
+        return jsonify({'error': 'No posts in your library yet. Import some posts first so I can learn the style.'}), 400
+
+    examples = '\n\n---\n\n'.join(
+        r['original_text'][:800] for r in example_rows
+    )
+    system_prompt = MODELED_PERSONA_SYSTEM.format(examples=examples)
+
+    user_msg = (
+        f"Write a new post in your style.\n\n"
+        f"Topic: {topic}\n"
+        f"Attachment style lens: {attachment_style}\n\n"
+        "Make it feel true. Make it feel like you."
+    )
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model='claude-opus-4-6',
+            max_tokens=1000,
+            system=system_prompt,
+            messages=[{'role': 'user', 'content': user_msg}]
+        )
+        post_text = message.content[0].text.strip()
+
+        with get_db() as conn:
+            conn.execute(
+                'INSERT INTO modeled_posts (post_text, attachment_style, topic) VALUES (?, ?, ?)',
+                (post_text, attachment_style, topic)
+            )
+            conn.commit()
+            row = conn.execute('SELECT last_insert_rowid() as id').fetchone()
+
+        return jsonify({'post_text': post_text, 'id': row['id']})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/modeled-posts/<int:post_id>/favorite', methods=['POST'])
+def modeled_post_favorite(post_id):
+    with get_db() as conn:
+        current = conn.execute('SELECT is_favorite FROM modeled_posts WHERE id = ?', (post_id,)).fetchone()
+        if current:
+            new_val = 0 if current['is_favorite'] else 1
+            conn.execute('UPDATE modeled_posts SET is_favorite = ? WHERE id = ?', (new_val, post_id))
+            conn.commit()
+            return jsonify({'is_favorite': new_val})
+    return jsonify({'error': 'not found'}), 404
+
+
+@app.route('/modeled-posts/<int:post_id>/delete', methods=['POST'])
+def modeled_post_delete(post_id):
+    with get_db() as conn:
+        conn.execute('DELETE FROM modeled_posts WHERE id = ?', (post_id,))
         conn.commit()
     return jsonify({'ok': True})
 

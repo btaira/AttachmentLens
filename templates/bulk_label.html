@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .bl-page { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
+  .bl-page h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .bl-page .sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+  .bl-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .bl-search {
+    padding: 7px 12px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); font-size: 13px; width: 260px;
+  }
+  .bl-search:focus { outline: none; border-color: var(--accent); }
+  .bl-filter {
+    padding: 7px 10px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); font-size: 13px; cursor: pointer;
+  }
+  .save-all-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px; border-radius: 7px; border: none;
+    background: var(--accent); color: #fff; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: opacity .15s;
+  }
+  .save-all-btn:hover { opacity: .85; }
+  .save-count { font-size: 12px; color: var(--muted); }
+
+  .bl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .bl-table th {
+    text-align: left; padding: 8px 12px; color: var(--muted);
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+    border-bottom: 1px solid var(--border); position: sticky; top: 54px;
+    background: var(--bg); z-index: 10;
+  }
+  .bl-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .bl-table tr:hover td { background: var(--surface2); }
+  .bl-table tr.changed td { background: rgba(124,106,247,.06); }
+
+  .post-preview { font-size: 13px; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .post-link { font-size: 11px; color: var(--accent); display: block; margin-top: 3px; }
+
+  .cat-sel {
+    padding: 5px 8px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 12px; font-weight: 600;
+    cursor: pointer; width: 100%;
+  }
+  .cat-sel:focus { outline: none; border-color: var(--accent); }
+  .cat-sel.changed { border-color: var(--accent); background: rgba(124,106,247,.1); }
+
+  .row-save-btn {
+    padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted); font-size: 11px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: all .15s;
+  }
+  .row-save-btn:hover { border-color: var(--secure); color: var(--secure); }
+  .row-save-btn.saved { border-color: var(--secure); color: var(--secure); }
+
+  .read-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+  .read-dot.unread { background: var(--accent); }
+  .read-dot.read { background: var(--secure); }
+</style>
+
+<div class="bl-page">
+  <h1>🏷 Bulk Re-Label</h1>
+  <div class="sub">Reassign categories across all posts in one view. Changes are saved per-row or all at once.</div>
+
+  <div class="bl-controls">
+    <input class="bl-search" type="text" id="bl-search" placeholder="Filter posts…" oninput="filterRows()">
+    <select class="bl-filter" id="bl-cat-filter" onchange="filterRows()">
+      <option value="">All categories</option>
+      {% for c in categories %}
+      <option value="{{ c }}">{{ c }}</option>
+      {% endfor %}
+    </select>
+    <select class="bl-filter" id="bl-read-filter" onchange="filterRows()">
+      <option value="">All read status</option>
+      <option value="0">Unread</option>
+      <option value="1">Read</option>
+    </select>
+    <button class="save-all-btn" onclick="saveAll()">💾 Save All Changes</button>
+    <span class="save-count" id="changed-count"></span>
+  </div>
+
+  <table class="bl-table" id="bl-table">
+    <thead>
+      <tr>
+        <th style="width:3%">#</th>
+        <th style="width:55%">Post</th>
+        <th style="width:25%">Category</th>
+        <th style="width:10%">Status</th>
+        <th style="width:7%">Save</th>
+      </tr>
+    </thead>
+    <tbody id="bl-tbody">
+      {% for p in posts %}
+      <tr id="bl-row-{{ p.id }}" data-id="{{ p.id }}"
+          data-orig-cat="{{ p.category }}"
+          data-read="{{ p.is_read or 0 }}"
+          data-text="{{ p.original_text[:100] | lower }}">
+        <td style="color:var(--muted);font-size:11px">{{ loop.index }}</td>
+        <td>
+          <div class="post-preview">{{ p.original_text[:200] }}</div>
+          <a class="post-link" href="/post/{{ p.id }}" target="_blank">Open post ↗</a>
+        </td>
+        <td>
+          <select class="cat-sel" id="cat-sel-{{ p.id }}"
+                  onchange="markChanged({{ p.id }}, this)">
+            {% for c in categories %}
+            <option value="{{ c }}" {% if p.category == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td style="text-align:center">
+          <span class="read-dot {{ 'read' if p.is_read else 'unread' }}" title="{{ 'Read' if p.is_read else 'Unread' }}"></span>
+          <span style="font-size:11px;color:var(--muted);margin-left:4px">{{ 'Read' if p.is_read else 'Unread' }}</span>
+        </td>
+        <td>
+          <button class="row-save-btn" id="save-btn-{{ p.id }}" onclick="saveRow({{ p.id }})" disabled>Save</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+const changedIds = new Set();
+
+function markChanged(id, sel) {
+  const row = document.getElementById('bl-row-' + id);
+  const origCat = row.dataset.origCat;
+  const btn = document.getElementById('save-btn-' + id);
+  if (sel.value !== origCat) {
+    sel.classList.add('changed');
+    row.classList.add('changed');
+    btn.disabled = false;
+    changedIds.add(id);
+  } else {
+    sel.classList.remove('changed');
+    row.classList.remove('changed');
+    btn.disabled = true;
+    changedIds.delete(id);
+  }
+  document.getElementById('changed-count').textContent =
+    changedIds.size > 0 ? changedIds.size + ' unsaved change' + (changedIds.size > 1 ? 's' : '') : '';
+}
+
+async function saveRow(id) {
+  const sel = document.getElementById('cat-sel-' + id);
+  const btn = document.getElementById('save-btn-' + id);
+  const row = document.getElementById('bl-row-' + id);
+  btn.textContent = '…';
+  const resp = await fetch('/post/' + id + '/category', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category: sel.value })
+  });
+  if (resp.ok) {
+    row.dataset.origCat = sel.value;
+    sel.classList.remove('changed');
+    row.classList.remove('changed');
+    btn.textContent = '✓';
+    btn.classList.add('saved');
+    btn.disabled = true;
+    changedIds.delete(id);
+    document.getElementById('changed-count').textContent =
+      changedIds.size > 0 ? changedIds.size + ' unsaved change' + (changedIds.size > 1 ? 's' : '') : '';
+    setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('saved'); }, 1500);
+  } else { btn.textContent = '✗'; }
+}
+
+async function saveAll() {
+  const ids = [...changedIds];
+  if (!ids.length) { alert('No changes to save.'); return; }
+  for (const id of ids) await saveRow(id);
+}
+
+function filterRows() {
+  const q = document.getElementById('bl-search').value.toLowerCase();
+  const catF = document.getElementById('bl-cat-filter').value;
+  const readF = document.getElementById('bl-read-filter').value;
+  document.querySelectorAll('#bl-tbody tr').forEach(row => {
+    const textMatch = !q || row.dataset.text.includes(q);
+    const catMatch = !catF || row.dataset.origCat === catF;
+    const readMatch = readF === '' || row.dataset.read === readF;
+    row.style.display = (textMatch && catMatch && readMatch) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}
