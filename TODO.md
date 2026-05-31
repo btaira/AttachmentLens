@@ -3,6 +3,8 @@
 ## High Priority
 
 
+
+- [ ] **[Requested by Brent, 2026-05-31]** Work on getting correct date for recent posts
 - [ ] **[Requested by Brent, 2026-05-31]** Fix the date field when scraping posts
 - [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
 - [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
