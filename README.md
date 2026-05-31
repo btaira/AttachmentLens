@@ -6,6 +6,10 @@
 
 A personal research tool for exploring attachment styles, relationship patterns, and emotional growth through AI-powered analysis of curated content.
 
+# Disclaimer
+
+This service/content is provided for general informational and educational purposes only. I am not a licensed therapist, mental health professional, or medical provider. I operate as an independent entity and am not affiliated with, endorsed by, or connected to any specific therapist, clinic, or mental health company.This information is not a substitute for professional mental health, psychological, or psychiatric advice, diagnosis, or treatment. Always seek the advice of your physician, licensed therapist, or other qualified health provider with any questions you may have regarding a medical or mental health condition.
+
 ## Overview
 
 AttachmentLens helps you build self-awareness around attachment patterns by:
