@@ -2,6 +2,10 @@
 
 ## High Priority
 
+
+
+- [ ] **[Requested by Brent, 2026-05-31]** Add logo
+- [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
 - [ ] **Multi-user support** — login system with per-user favorites, insights, AI insights, and modeled posts; user switcher dropdown in the upper-right nav bar; admin role for managing users and import/bulk-label
 - [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
 - [ ] **Browser extension scraper** — replace the fragile console script with an extension that captures posts as you naturally browse; Facebook changes its DOM regularly and the script will break again
