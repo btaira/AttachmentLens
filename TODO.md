@@ -2,6 +2,8 @@
 
 ## High Priority
 
+
+- [ ] **[Requested by Brent, 2026-05-31]** Fix the date field when scraping posts
 - [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
 - [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
 - [ ] **Browser extension scraper** — replace the fragile console script with an extension that captures posts as you naturally browse; Facebook changes its DOM regularly and the script will break again
