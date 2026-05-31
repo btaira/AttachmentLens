@@ -2,7 +2,6 @@
 
 ## High Priority
 
-- [ ] **[Requested by Brent, 2026-05-31]** Add logo
 - [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
 - [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
 - [ ] **Browser extension scraper** — replace the fragile console script with an extension that captures posts as you naturally browse; Facebook changes its DOM regularly and the script will break again
@@ -53,4 +52,4 @@
 - [x] **Per-user clear data** — Clear My Insights, Clear AI Analysis History, Clear Modeled Posts buttons in Danger Zone (Admin → Import/Update Posts)
 - [x] **GitHub Integration** — store a PAT token, test connection, commit feature requests to the repo's TODO.md
 - [x] **Feature request button** — 💡 Request in nav bar opens a modal; approved requests are committed to GitHub TODO.md
-- [x] **App logo** — two interlocking rings logo displayed in nav bar and login page
+- [x] **App logo** — two interlocking rings logo displayed in nav bar, login page, and README; 50% larger in nav with increased nav height
