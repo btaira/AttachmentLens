@@ -50,7 +50,8 @@
   }
   .font-btn:hover { border-color: var(--accent); color: var(--accent); }
   .font-size-display { font-size: 11px; color: var(--muted); min-width: 28px; text-align: center; }
-  nav .brand { font-size: 20px; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
+  nav .brand { display: flex; align-items: center; text-decoration: none; }
+  nav .brand img { height: 36px; width: auto; }
   nav .brand span { color: var(--accent); }
   nav a.nav-link { color: var(--muted); font-size: 14px; }
   nav a.nav-link:hover { color: var(--text); text-decoration: none; }
@@ -105,34 +106,94 @@
     color: var(--muted);
   }
 
-  /* Admin dropdown */
-  .admin-menu { position: relative; }
-  .admin-btn {
+  /* Shared dropdown styles (admin + user menus) */
+  .nav-menu { position: relative; }
+  .nav-menu-btn {
     background: var(--surface2); border: 1px solid var(--border);
     color: var(--muted); border-radius: 6px; cursor: pointer;
     padding: 5px 12px; font-size: 13px; font-weight: 600;
     transition: border-color .15s, color .15s;
     white-space: nowrap;
   }
-  .admin-btn:hover { border-color: var(--accent); color: var(--text); }
-  .admin-dropdown {
+  .nav-menu-btn:hover { border-color: var(--accent); color: var(--text); }
+  .nav-dropdown {
     display: none; position: absolute; right: 0; top: calc(100% + 6px);
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; box-shadow: var(--shadow);
     min-width: 170px; z-index: 300; overflow: hidden;
   }
-  .admin-dropdown.open { display: block; }
-  .admin-item {
+  .nav-dropdown.open { display: block; }
+  .nav-dropdown-item {
     display: block; padding: 10px 16px;
     font-size: 13px; color: var(--muted);
     transition: background .12s, color .12s;
+    cursor: pointer; width: 100%; text-align: left;
+    background: none; border: none; font-family: inherit;
   }
+  .nav-dropdown-item:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
+  .nav-dropdown-item.active-user { color: var(--accent); font-weight: 700; }
+  .nav-dropdown-divider {
+    border: none; border-top: 1px solid var(--border); margin: 4px 0;
+  }
+  /* Feature request modal */
+  .fr-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.6); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .fr-overlay.open { display: flex; }
+  .fr-modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 28px 28px 22px; width: 100%; max-width: 480px;
+  }
+  .fr-modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .fr-modal p  { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .fr-modal textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 14px; font-family: inherit;
+    padding: 10px 12px; resize: vertical; min-height: 100px; outline: none;
+    transition: border-color .15s;
+  }
+  .fr-modal textarea:focus { border-color: var(--accent); }
+  .fr-modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+  .fr-cancel {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; cursor: pointer; padding: 7px 16px; font-size: 13px; font-weight: 600;
+  }
+  .fr-cancel:hover { color: var(--text); }
+  .fr-submit {
+    background: var(--accent); border: none; color: #fff;
+    border-radius: 6px; cursor: pointer; padding: 7px 18px; font-size: 13px; font-weight: 700;
+    transition: opacity .15s;
+  }
+  .fr-submit:hover { opacity: .85; }
+  .fr-msg { font-size: 13px; margin-top: 10px; display: none; }
+  .fr-msg.ok  { color: var(--secure); }
+  .fr-msg.err { color: var(--anxious); }
+  .fr-nav-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 6px; cursor: pointer;
+    padding: 5px 12px; font-size: 13px; font-weight: 600;
+    transition: border-color .15s, color .15s; white-space: nowrap;
+  }
+  .fr-nav-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  /* Legacy aliases so old references still work */
+  .admin-menu { position: relative; }
+  .admin-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; cursor: pointer; padding: 5px 12px; font-size: 13px; font-weight: 600; transition: border-color .15s, color .15s; white-space: nowrap; }
+  .admin-btn:hover { border-color: var(--accent); color: var(--text); }
+  .admin-dropdown { display: none; position: absolute; right: 0; top: calc(100% + 6px); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); min-width: 170px; z-index: 300; overflow: hidden; }
+  .admin-dropdown.open { display: block; }
+  .admin-item { display: block; padding: 10px 16px; font-size: 13px; color: var(--muted); transition: background .12s, color .12s; }
   .admin-item:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
 </style>
 </head>
 <body>
 <nav>
-  <span class="brand">Attachment<span>Lens</span></span>
+  <a href="/" class="brand">
+    <img src="/static/images/logo.png" alt="AttachmentLens" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+    <span style="display:none;font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.01em">Attachment<span style="color:var(--accent)">Lens</span></span>
+  </a>
   <a href="/" class="nav-link">🏠 Home</a>
   <a href="/#favorites" class="nav-link">⭐ Favorites</a>
   <a href="/insights" class="nav-link">✨ Insights</a>
@@ -146,24 +207,120 @@
     <span class="font-size-display" id="font-size-display">15</span>
     <button class="font-btn" onclick="adjustFont(1)" title="Increase font size">A+</button>
   </div>
+  <!-- Feature request button -->
+  <button class="fr-nav-btn" onclick="openFeatureRequest()">💡 Request</button>
   <!-- Admin dropdown -->
-  <div class="admin-menu" id="admin-menu">
-    <button class="admin-btn" onclick="toggleAdminMenu(event)">⚙️ Admin ▾</button>
-    <div class="admin-dropdown" id="admin-dropdown">
-      <a href="/import" class="admin-item">📥 Import Posts</a>
-      <a href="/bulk-label" class="admin-item">🏷️ Bulk Label</a>
+  <div class="nav-menu" id="admin-menu">
+    <button class="nav-menu-btn" onclick="toggleMenu('admin-dropdown', event)">⚙️ Admin ▾</button>
+    <div class="nav-dropdown" id="admin-dropdown">
+      <a href="/import" class="nav-dropdown-item">📥 Import Posts</a>
+      <a href="/bulk-label" class="nav-dropdown-item">🏷️ Bulk Label</a>
     </div>
   </div>
+  <!-- User dropdown -->
+  {% if session.get('username') %}
+  <div class="nav-menu" id="user-menu">
+    <button class="nav-menu-btn" onclick="toggleMenu('user-dropdown', event)">👤 {{ session.get('username') }} ▾</button>
+    <div class="nav-dropdown" id="user-dropdown">
+      {% if users %}
+        {% for u in users %}
+          <form method="POST" action="/switch-user/{{ u.id }}" style="margin:0">
+            <button type="submit" class="nav-dropdown-item{% if u.id == session.get('user_id') %} active-user{% endif %}">
+              {% if u.id == session.get('user_id') %}✓ {% endif %}{{ u.username }}
+            </button>
+          </form>
+        {% endfor %}
+        <hr class="nav-dropdown-divider">
+      {% endif %}
+      <a href="/register" class="nav-dropdown-item">➕ Add User</a>
+      <a href="/logout" class="nav-dropdown-item">🚪 Sign Out</a>
+    </div>
+  </div>
+  {% endif %}
 </nav>
 <div id="page-content">{% block content %}{% endblock %}</div>
+
+<!-- Feature request modal -->
+<div class="fr-overlay" id="fr-overlay" onclick="closeFROnOverlay(event)">
+  <div class="fr-modal">
+    <h3>💡 Request a Feature</h3>
+    <p>Describe what you'd like — it'll be added to the roadmap in TODO.md.</p>
+    <textarea id="fr-text" placeholder="e.g. Add a way to tag posts by emotion, not just attachment style…"></textarea>
+    <div class="fr-msg" id="fr-msg"></div>
+    <div class="fr-modal-footer">
+      <button class="fr-cancel" onclick="closeFR()">Cancel</button>
+      <button class="fr-submit" id="fr-submit-btn" onclick="submitFeatureRequest()">Add to Roadmap</button>
+    </div>
+  </div>
+</div>
 <script>
-function toggleAdminMenu(e) {
-  e.stopPropagation();
-  document.getElementById('admin-dropdown').classList.toggle('open');
+function openFeatureRequest() {
+  document.getElementById('fr-overlay').classList.add('open');
+  document.getElementById('fr-text').focus();
+  const msg = document.getElementById('fr-msg');
+  msg.style.display = 'none'; msg.className = 'fr-msg';
 }
+function closeFR() {
+  document.getElementById('fr-overlay').classList.remove('open');
+  document.getElementById('fr-text').value = '';
+}
+function closeFROnOverlay(e) {
+  if (e.target === document.getElementById('fr-overlay')) closeFR();
+}
+async function submitFeatureRequest() {
+  const text = document.getElementById('fr-text').value.trim();
+  const msg = document.getElementById('fr-msg');
+  const btn = document.getElementById('fr-submit-btn');
+  msg.style.display = 'none';
+  if (!text) {
+    msg.textContent = 'Please describe your request first.';
+    msg.className = 'fr-msg err'; msg.style.display = ''; return;
+  }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const resp = await fetch('/feature-request', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text })
+    });
+    let data;
+    try { data = await resp.json(); } catch(_) { data = {}; }
+    if (resp.ok && data.ok) {
+      msg.innerHTML = data.commit
+        ? `✓ Added to the roadmap! <a href="${data.commit}" target="_blank" style="color:var(--accent2)">View commit ↗</a>`
+        : '✓ Added to the roadmap!';
+      msg.className = 'fr-msg ok'; msg.style.display = '';
+      document.getElementById('fr-text').value = '';
+      setTimeout(closeFR, 3000);
+    } else {
+      const errText = data.error || `HTTP ${resp.status}`;
+      if (resp.status === 400 && errText.includes('GitHub token')) {
+        msg.innerHTML = 'GitHub token not configured. <a href="/import#github-section" style="color:var(--accent2)">Set it up in ⚙️ Admin → Import Posts</a>.';
+      } else {
+        msg.textContent = 'Error: ' + errText;
+      }
+      msg.className = 'fr-msg err'; msg.style.display = '';
+    }
+  } catch(e) {
+    msg.textContent = 'Network error: ' + e.message;
+    msg.className = 'fr-msg err'; msg.style.display = '';
+  }
+  btn.disabled = false; btn.textContent = 'Add to Roadmap';
+}
+
+function toggleMenu(id, e) {
+  e.stopPropagation();
+  const target = document.getElementById(id);
+  const wasOpen = target.classList.contains('open');
+  // Close all dropdowns first
+  document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
+  if (!wasOpen) target.classList.add('open');
+}
+// Legacy alias
+function toggleAdminMenu(e) { toggleMenu('admin-dropdown', e); }
+
 document.addEventListener('click', () => {
-  const d = document.getElementById('admin-dropdown');
-  if (d) d.classList.remove('open');
+  document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
 });
 
 (function() {

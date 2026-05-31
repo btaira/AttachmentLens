@@ -499,10 +499,13 @@
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:4px">Paste JSON <span style="font-weight:400;opacity:.6">(auto-filled above, or paste manually)</span></div>
     <textarea id="json_data" placeholder='Paste JSON here, or use "Copy from window.derekPosts" above…'></textarea>
 
-    <!-- Backup & Restore -->
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Backup &amp; Restore</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
+    <!-- ── Backup & Restore ─────────────────────────────────────────── -->
+    <div style="margin-top:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">💾 Backup &amp; Restore</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
         <a href="/backup" class="action-btn" style="width:100%;justify-content:flex-start;text-decoration:none">
           💾 Download Backup (JSON)
         </a>
@@ -515,13 +518,63 @@
       </div>
     </div>
 
-    <!-- Danger zone -->
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Danger Zone</div>
-      <button class="action-btn" id="clear-btn" onclick="clearAllPosts()" style="background:#7a2020;width:100%;justify-content:flex-start">
-        🗑 Clear All Posts
-      </button>
-      <div class="btn-label" style="text-align:left;padding-left:4px">Permanently deletes all posts from the database</div>
+    <!-- ── GitHub Integration ────────────────────────────────────────── -->
+    <div style="margin-top:18px" id="github-section">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">🔗 GitHub Integration</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid {% if github_token_set %}rgba(93,217,156,.35){% else %}var(--border){% endif %};border-radius:8px;padding:14px 16px">
+        <p style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:6px">Personal Access Token</p>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">
+          Used to commit feature requests directly to <code style="font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:4px">TODO.md</code> on GitHub.<br><br>
+          <strong style="color:var(--text)">Classic token (recommended):</strong> Check the top-level
+          <code style="font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:4px">repo</code>
+          scope — required for private repositories. <code style="font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:4px">public_repo</code> alone will return a 404 if the repo is private.<br><br>
+          <strong style="color:var(--text)">Fine-grained token:</strong> Select the <code style="font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:4px">AttachmentLens</code> repository, then set <strong>Contents</strong> → <em>Read and write</em>.
+        </p>
+        {% if github_token_set %}
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:13px;color:var(--secure);font-weight:600">✓ Token saved</span>
+          <button class="action-btn" id="gh-test-btn" onclick="testGitHubConnection()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 12px;font-size:12px">🔌 Test Connection</button>
+          <button class="action-btn" onclick="deleteGitHubToken()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 12px;font-size:12px;margin-left:auto">Remove</button>
+        </div>
+        <div id="gh-test-result" style="font-size:12px;margin-top:8px;display:none"></div>
+        {% else %}
+        <div style="display:flex;gap:8px;margin-bottom:4px">
+          <input type="password" id="github-token-input" placeholder="ghp_… or github_pat_…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:7px 10px;outline:none" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <button class="action-btn" onclick="saveGitHubToken()" style="padding:7px 16px;font-size:13px">Save</button>
+        </div>
+        <a href="https://github.com/settings/tokens/new?scopes=repo&description=AttachmentLens+Feature+Requests" target="_blank" style="font-size:12px;color:var(--accent2)">↗ Generate a Classic token with repo scope</a>
+        {% endif %}
+        <div id="github-token-msg" style="font-size:12px;margin-top:8px;display:none"></div>
+      </div>
+    </div>
+
+    <!-- ── Danger Zone ───────────────────────────────────────────────── -->
+    <div style="margin-top:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#c0392b">⚠️ Danger Zone</span>
+        <div style="flex:1;height:1px;background:rgba(192,57,43,.35)"></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+        <button class="action-btn" id="clear-btn" onclick="clearAllPosts()" style="background:#7a2020;width:100%;justify-content:flex-start">
+          🗑 Clear All Posts
+        </button>
+        <div class="btn-label" style="text-align:left;padding-left:4px">Permanently deletes all posts from the database (shared — affects all users)</div>
+        <button class="action-btn" id="clear-insights-btn" onclick="clearCollection('/insights/clear','clear-insights-btn','🗑 Clear My Insights','All your saved highlights deleted.')" style="background:#7a2020;width:100%;justify-content:flex-start">
+          🗑 Clear My Insights
+        </button>
+        <div class="btn-label" style="text-align:left;padding-left:4px">Permanently deletes your highlights &amp; personal reflections</div>
+        <button class="action-btn" id="clear-ai-btn" onclick="clearCollection('/ai-insights/clear','clear-ai-btn','🗑 Clear AI Analysis History','AI analysis history deleted.')" style="background:#7a2020;width:100%;justify-content:flex-start">
+          🗑 Clear AI Analysis History
+        </button>
+        <div class="btn-label" style="text-align:left;padding-left:4px">Permanently deletes your AI-generated analysis history</div>
+        <button class="action-btn" id="clear-modeled-btn" onclick="clearCollection('/modeled-posts/clear','clear-modeled-btn','🗑 Clear Modeled Posts','All modeled posts deleted.')" style="background:#7a2020;width:100%;justify-content:flex-start">
+          🗑 Clear Modeled Posts
+        </button>
+        <div class="btn-label" style="text-align:left;padding-left:4px">Permanently deletes your AI-generated modeled posts</div>
+      </div>
     </div>
 
   </div>
@@ -600,6 +653,88 @@ async function clearAllPosts() {
     }
   } catch(e) { errorBox.textContent = 'Error: ' + e.message; errorBox.style.display = ''; }
   btn.disabled = false; btn.innerHTML = '🗑 Clear All Posts';
+}
+
+async function testGitHubConnection() {
+  const btn = document.getElementById('gh-test-btn');
+  const res = document.getElementById('gh-test-result');
+  btn.disabled = true; btn.textContent = 'Testing…';
+  res.style.display = 'none';
+  try {
+    const resp = await fetch('/github/test', { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      res.innerHTML = `✓ Connected — TODO.md found (SHA <code>${data.sha}</code>, ${data.size} bytes)`;
+      res.style.color = 'var(--secure)';
+    } else {
+      res.textContent = '✗ ' + (data.error || 'Unknown error');
+      res.style.color = 'var(--anxious)';
+    }
+  } catch(e) {
+    res.textContent = '✗ Network error: ' + e.message;
+    res.style.color = 'var(--anxious)';
+  }
+  res.style.display = '';
+  btn.disabled = false; btn.textContent = '🔌 Test Connection';
+}
+
+async function saveGitHubToken() {
+  const token = (document.getElementById('github-token-input') || {}).value?.trim();
+  const msg = document.getElementById('github-token-msg');
+  if (!token) { msg.textContent = 'Please enter a token.'; msg.style.color = 'var(--anxious)'; msg.style.display = ''; return; }
+  const resp = await fetch('/settings/github-token', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ token })
+  });
+  const data = await resp.json();
+  if (data.ok) {
+    msg.textContent = '✓ Token saved — reload to confirm.'; msg.style.color = 'var(--secure)'; msg.style.display = '';
+    setTimeout(() => location.reload(), 900);
+  } else {
+    msg.textContent = 'Error: ' + (data.error || 'unknown'); msg.style.color = 'var(--anxious)'; msg.style.display = '';
+  }
+}
+
+async function deleteGitHubToken() {
+  if (!confirm('Remove the GitHub token?')) return;
+  const msg = document.getElementById('github-token-msg');
+  msg.style.display = 'none';
+  try {
+    const resp = await fetch('/settings/github-token/delete', { method: 'POST' });
+    const raw = await resp.text();
+    console.log('DELETE token response', resp.status, raw);
+    let data = {};
+    try { data = JSON.parse(raw); } catch(_) {}
+    if (data.ok) { location.reload(); return; }
+    // Show full response inline so it can be read/copied
+    msg.style.color = 'var(--anxious)';
+    msg.innerHTML = '<strong>HTTP ' + resp.status + '</strong><br><code style="font-size:11px;word-break:break-all;white-space:pre-wrap;display:block;margin-top:4px">' + raw.slice(0, 500).replace(/</g,'&lt;') + '</code>';
+    msg.style.display = '';
+  } catch(e) {
+    msg.textContent = 'Network error: ' + e.message;
+    msg.style.color = 'var(--anxious)';
+    msg.style.display = '';
+  }
+}
+
+async function clearCollection(url, btnId, label, successMsg) {
+  if (!confirm('This cannot be undone. Continue?')) return;
+  const btn = document.getElementById(btnId);
+  const successBox = document.getElementById('success-box');
+  const errorBox = document.getElementById('error-box');
+  successBox.style.display = 'none'; errorBox.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Clearing…';
+  try {
+    const resp = await fetch(url, { method: 'POST' });
+    const data = await resp.json();
+    if (data.cleared) {
+      successBox.textContent = '✓ ' + successMsg;
+      successBox.style.display = '';
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch(e) { errorBox.textContent = 'Error: ' + e.message; errorBox.style.display = ''; }
+  btn.disabled = false; btn.innerHTML = label;
 }
 
 async function doRestore(input) {

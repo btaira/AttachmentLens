@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% if mode == 'register' %}Create Account{% else %}Sign In{% endif %} — Attachment Lens</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242736;
+    --border: #2e3147;
+    --accent: #7c6af7;
+    --text: #e8eaf6;
+    --muted: #8a8fa8;
+    --radius: 10px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .login-wrap {
+    width: 100%;
+    max-width: 380px;
+    padding: 24px 16px;
+  }
+  .brand {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .brand img { height: 56px; width: auto; }
+  .brand .brand-text {
+    font-size: 26px; font-weight: 800; letter-spacing: -.01em;
+  }
+  .brand .brand-text span { color: var(--accent); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 28px;
+    box-shadow: var(--shadow);
+  }
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+  label:first-of-type { margin-top: 0; }
+  input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); }
+  .error {
+    background: rgba(192, 57, 43, .15);
+    border: 1px solid rgba(192, 57, 43, .4);
+    border-radius: 6px;
+    color: #e07060;
+    font-size: 13px;
+    padding: 9px 12px;
+    margin-bottom: 16px;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    margin-top: 22px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .88; }
+  .switch-link {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .switch-link a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .switch-link a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="brand">
+    <img src="/static/images/logo.png" alt="AttachmentLens"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <div class="brand-text" style="display:none">Attachment<span>Lens</span></div>
+  </div>
+  <div class="card">
+    {% if mode == 'register' %}
+      <h2>Create Account</h2>
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <form method="POST" action="/register">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="new-password" required>
+        <button class="btn" type="submit">Create Account</button>
+      </form>
+      <div class="switch-link">Already have an account? <a href="/login">Sign in</a></div>
+    {% else %}
+      <h2>Sign In</h2>
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <form method="POST" action="/login{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+        <button class="btn" type="submit">Sign In</button>
+      </form>
+      <div class="switch-link">New here? <a href="/register">Create an account</a></div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

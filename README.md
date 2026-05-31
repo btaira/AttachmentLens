@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="static/images/logo.png" alt="AttachmentLens" width="480">
+</p>
+
 # AttachmentLens
 
 A personal research tool for exploring attachment styles, relationship patterns, and emotional growth through AI-powered analysis of curated content.

@@ -1,9 +1,12 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 import sqlite3
 import json
 import re
 import os
+import hashlib
+import secrets
 from datetime import datetime
+from functools import wraps
 try:
     import anthropic
     _has_anthropic = True
@@ -13,6 +16,31 @@ except ImportError:
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
 DB = os.getenv('DB_PATH', 'posts.db')
+
+
+def _load_secret_key():
+    """Persist secret key in a file so sessions survive restarts."""
+    fixed = os.getenv('SECRET_KEY')
+    if fixed:
+        return fixed
+    # Store next to the DB file (same directory)
+    db_dir = os.path.dirname(os.path.abspath(DB))
+    key_path = os.path.join(db_dir, '.secret_key')
+    try:
+        with open(key_path, 'r') as f:
+            key = f.read().strip()
+        if key:
+            return key
+    except FileNotFoundError:
+        pass
+    key = secrets.token_hex(32)
+    os.makedirs(db_dir, exist_ok=True)
+    with open(key_path, 'w') as f:
+        f.write(key)
+    return key
+
+
+app.secret_key = _load_secret_key()
 
 # ---------------------------------------------------------------------------
 # Attachment-style keyword classifier
@@ -79,12 +107,17 @@ def get_db():
     return conn
 
 
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
 def init_db():
     # Ensure directory exists for database file
     db_dir = os.path.dirname(DB) or '.'
     os.makedirs(db_dir, exist_ok=True)
 
     with get_db() as conn:
+        # ── Core posts (shared across all users) ────────────────────────
         conn.execute('''
             CREATE TABLE IF NOT EXISTS posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,52 +128,98 @@ def init_db():
                 category TEXT NOT NULL,
                 is_revised INTEGER DEFAULT 0,
                 popularity INTEGER DEFAULT 0,
+                likes INTEGER DEFAULT 0,
+                comments INTEGER DEFAULT 0,
                 imported_at TEXT DEFAULT (datetime('now'))
             )
         ''')
+        # Migrate legacy columns on posts
+        for col, defn in [
+            ('popularity', 'INTEGER DEFAULT 0'),
+            ('likes', 'INTEGER DEFAULT 0'),
+            ('comments', 'INTEGER DEFAULT 0'),
+            ('date_label', 'TEXT'),
+            ('post_url', 'TEXT'),
+        ]:
+            try:
+                conn.execute(f'ALTER TABLE posts ADD COLUMN {col} {defn}')
+            except Exception:
+                pass
+
+        # ── Users ────────────────────────────────────────────────────────
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        ''')
+
+        # ── Per-user post preferences ─────────────────────────────────────
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS user_post_prefs (
+                user_id INTEGER NOT NULL,
+                post_id INTEGER NOT NULL,
+                is_favorite INTEGER DEFAULT 0,
+                is_read INTEGER DEFAULT 0,
+                tags TEXT DEFAULT '',
+                PRIMARY KEY (user_id, post_id)
+            )
+        ''')
+
+        # ── Insights (per user) ───────────────────────────────────────────
         conn.execute('''
             CREATE TABLE IF NOT EXISTS insights (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
                 post_id INTEGER,
                 highlighted_text TEXT NOT NULL,
                 my_thoughts TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now'))
             )
         ''')
-        # Migrate: add columns if they don't exist yet
-        for col, defn in [
-            ('popularity', 'INTEGER DEFAULT 0'),
-            ('is_favorite', 'INTEGER DEFAULT 0'),
-            ('likes', 'INTEGER DEFAULT 0'),
-            ('comments', 'INTEGER DEFAULT 0'),
-            ('is_read', 'INTEGER DEFAULT 0'),
-            ('tags', "TEXT DEFAULT ''"),
-        ]:
-            try:
-                conn.execute(f'ALTER TABLE posts ADD COLUMN {col} {defn}')
-            except Exception:
-                pass
-        # Settings table for API key and AI prompt
+        try:
+            conn.execute('ALTER TABLE insights ADD COLUMN user_id INTEGER')
+        except Exception:
+            pass
+
+        # ── Settings (per user) ───────────────────────────────────────────
         conn.execute('''
             CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT
+                user_id INTEGER NOT NULL DEFAULT 1,
+                key TEXT NOT NULL,
+                value TEXT,
+                PRIMARY KEY (user_id, key)
             )
         ''')
-        # AI analysis history
+        # migrate old single-key settings table
+        try:
+            conn.execute('ALTER TABLE settings ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1')
+        except Exception:
+            pass
+
+        # ── AI analysis history (per user) ────────────────────────────────
         conn.execute('''
             CREATE TABLE IF NOT EXISTS ai_analyses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
                 analysis_text TEXT NOT NULL,
                 prompt_used TEXT,
                 feedback TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now'))
             )
         ''')
-        # Modeled posts — AI-generated in Derek Hart's style
+        try:
+            conn.execute('ALTER TABLE ai_analyses ADD COLUMN user_id INTEGER')
+        except Exception:
+            pass
+
+        # ── Modeled posts (per user) ──────────────────────────────────────
         conn.execute('''
             CREATE TABLE IF NOT EXISTS modeled_posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
                 post_text TEXT NOT NULL,
                 attachment_style TEXT,
                 topic TEXT,
@@ -148,19 +227,72 @@ def init_db():
                 created_at TEXT DEFAULT (datetime('now'))
             )
         ''')
+        try:
+            conn.execute('ALTER TABLE modeled_posts ADD COLUMN user_id INTEGER')
+        except Exception:
+            pass
+
+        # ── Seed default admin user if no users exist ─────────────────────
+        existing_users = conn.execute('SELECT COUNT(*) as n FROM users').fetchone()['n']
+        if existing_users == 0:
+            conn.execute(
+                'INSERT INTO users (id, username, password_hash) VALUES (1, ?, ?)',
+                ('admin', hash_password('admin'))
+            )
+            # Migrate any existing data to user_id=1
+            conn.execute('UPDATE insights SET user_id = 1 WHERE user_id IS NULL')
+            conn.execute('UPDATE ai_analyses SET user_id = 1 WHERE user_id IS NULL')
+            conn.execute('UPDATE modeled_posts SET user_id = 1 WHERE user_id IS NULL')
+            # Migrate is_favorite, is_read, tags from posts → user_post_prefs
+            legacy = conn.execute(
+                'SELECT id, is_favorite, is_read, tags FROM posts WHERE (is_favorite=1 OR is_read=1 OR (tags IS NOT NULL AND tags != ""))'
+            ).fetchall()
+            for row in legacy:
+                conn.execute('''
+                    INSERT OR IGNORE INTO user_post_prefs (user_id, post_id, is_favorite, is_read, tags)
+                    VALUES (1, ?, ?, ?, ?)
+                ''', (row['id'], row['is_favorite'] or 0, row['is_read'] or 0, row['tags'] or ''))
+
         conn.commit()
 
 
-def get_setting(key, default=''):
+def current_user_id():
+    return session.get('user_id', 1)
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            # POST/PUT/DELETE = API fetch call → return JSON so JS can handle it
+            # GET = page navigation → redirect to login
+            if request.method != 'GET':
+                return jsonify({'error': 'Session expired — please reload the page and log in again.'}), 401
+            return redirect(url_for('login', next=request.path))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def get_setting(key, default='', user_id=None):
+    uid = user_id if user_id is not None else current_user_id()
     with get_db() as conn:
-        row = conn.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
+        row = conn.execute('SELECT value FROM settings WHERE user_id = ? AND key = ?', (uid, key)).fetchone()
+        if not row:
+            # fall back to legacy single-key row (migration)
+            row = conn.execute('SELECT value FROM settings WHERE key = ? AND user_id = 1', (key,)).fetchone()
     return row['value'] if row else default
 
 
-def set_setting(key, value):
+def set_setting(key, value, user_id=None):
+    uid = user_id if user_id is not None else current_user_id()
     with get_db() as conn:
-        conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
+        conn.execute('INSERT OR REPLACE INTO settings (user_id, key, value) VALUES (?, ?, ?)', (uid, key, value))
         conn.commit()
+
+
+def get_all_users():
+    with get_db() as conn:
+        return conn.execute('SELECT id, username FROM users ORDER BY username').fetchall()
 
 
 DEFAULT_THERAPIST_PROMPT = """You are a warm, insightful therapist specializing in attachment theory and relationship psychology. I'm going to share a collection of passages someone highlighted while reading about attachment and relationships — things that resonated deeply enough to save. For many of these, they've also written their own personal thoughts and feelings in response to what they read.
@@ -201,34 +333,116 @@ def first_sentence(text):
 app.jinja_env.globals['first_sentence'] = first_sentence
 
 
+@app.context_processor
+def inject_globals():
+    return {'users': get_all_users(), 'session': session}
+
+
 init_db()
+
+
+# ---------------------------------------------------------------------------
+# Auth routes
+# ---------------------------------------------------------------------------
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+        with get_db() as conn:
+            user = conn.execute(
+                'SELECT * FROM users WHERE username = ? AND password_hash = ?',
+                (username, hash_password(password))
+            ).fetchone()
+        if user:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            return redirect(request.args.get('next') or url_for('index'))
+        error = 'Invalid username or password.'
+    return render_template('login.html', error=error, mode='login')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    error = None
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+        if not username or not password:
+            error = 'Username and password are required.'
+        elif len(password) < 4:
+            error = 'Password must be at least 4 characters.'
+        else:
+            try:
+                with get_db() as conn:
+                    conn.execute(
+                        'INSERT INTO users (username, password_hash) VALUES (?, ?)',
+                        (username, hash_password(password))
+                    )
+                    conn.commit()
+                    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                return redirect(url_for('index'))
+            except Exception:
+                error = 'Username already taken.'
+    return render_template('login.html', error=error, mode='register')
+
+
+@app.route('/switch-user/<int:user_id>', methods=['POST'])
+@login_required
+def switch_user(user_id):
+    with get_db() as conn:
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if user:
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 @app.route('/')
+@login_required
 def index():
+    uid = current_user_id()
     search = request.args.get('q', '').strip()
+    # Base query joins user_post_prefs for per-user is_favorite/is_read/tags
+    PREFS_JOIN = '''
+        LEFT JOIN user_post_prefs up ON up.post_id = p.id AND up.user_id = {uid}
+    '''.format(uid=uid)
+    PREFS_COLS = '''
+        p.*, COALESCE(up.is_favorite,0) as is_favorite,
+        COALESCE(up.is_read,0) as is_read,
+        COALESCE(up.tags,'') as tags
+    '''
     with get_db() as conn:
         latest = conn.execute(
-            'SELECT * FROM posts ORDER BY id DESC LIMIT 5'
+            f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} ORDER BY p.id DESC LIMIT 5'
         ).fetchall()
         if search:
             library = conn.execute(
-                "SELECT * FROM posts WHERE original_text LIKE ? OR revised_text LIKE ? ORDER BY popularity DESC, id DESC",
+                f"SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} WHERE p.original_text LIKE ? OR p.revised_text LIKE ? ORDER BY p.popularity DESC, p.id DESC",
                 (f'%{search}%', f'%{search}%')
             ).fetchall()
         else:
             library = conn.execute(
-                'SELECT * FROM posts ORDER BY popularity DESC, id DESC'
+                f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} ORDER BY p.popularity DESC, p.id DESC'
             ).fetchall()
         cats = conn.execute(
             'SELECT category, COUNT(*) as cnt FROM posts GROUP BY category ORDER BY cnt DESC'
         ).fetchall()
         total = conn.execute('SELECT COUNT(*) as n FROM posts').fetchone()['n']
         favorites = conn.execute(
-            'SELECT * FROM posts WHERE is_favorite = 1 ORDER BY category, popularity DESC'
+            f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} WHERE up.is_favorite = 1 ORDER BY p.category, p.popularity DESC'
         ).fetchall()
     return render_template(
         'index.html',
@@ -243,10 +457,14 @@ def index():
 
 
 @app.route('/category/<path:cat_name>')
+@login_required
 def category_view(cat_name):
+    uid = current_user_id()
+    PREFS_JOIN = f'LEFT JOIN user_post_prefs up ON up.post_id = p.id AND up.user_id = {uid}'
+    PREFS_COLS = 'p.*, COALESCE(up.is_favorite,0) as is_favorite, COALESCE(up.is_read,0) as is_read, COALESCE(up.tags,\'\') as tags'
     with get_db() as conn:
         posts = conn.execute(
-            'SELECT * FROM posts WHERE category = ? ORDER BY popularity DESC, id DESC',
+            f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} WHERE p.category = ? ORDER BY p.popularity DESC, p.id DESC',
             (cat_name,)
         ).fetchall()
         cats = conn.execute(
@@ -256,11 +474,13 @@ def category_view(cat_name):
 
 
 @app.route('/search')
+@login_required
 def search_route():
     return redirect(url_for('index', q=request.args.get('q', '')))
 
 
 @app.route('/import_json', methods=['POST'])
+@login_required
 def import_json():
     """Accepts large JSON payloads via fetch() to bypass browser form size limits."""
     try:
@@ -316,16 +536,18 @@ def import_json():
 
 
 @app.route('/import', methods=['GET', 'POST'])
+@login_required
 def import_posts():
+    _gh = bool(get_setting('github_token', '', user_id=1))
     if request.method == 'POST':
         raw = request.form.get('json_data', '')
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:
-            return render_template('import.html', error=f"JSON parse error: {e}")
+            return render_template('import.html', error=f"JSON parse error: {e}", github_token_set=_gh)
 
         if not isinstance(data, list):
-            return render_template('import.html', error="Expected a JSON array.")
+            return render_template('import.html', error="Expected a JSON array.", github_token_set=_gh)
 
         imported = 0
         skipped = 0
@@ -350,19 +572,30 @@ def import_posts():
                 imported += 1
             conn.commit()
         return redirect(url_for('index') + f'?imported={imported}&skipped={skipped}')
-    return render_template('import.html')
+    return render_template('import.html', github_token_set=bool(get_setting('github_token', '', user_id=1)))
 
 
 @app.route('/post/<int:post_id>')
+@login_required
 def view_post(post_id):
+    uid = current_user_id()
     with get_db() as conn:
-        post = conn.execute('SELECT * FROM posts WHERE id = ?', (post_id,)).fetchone()
+        post = conn.execute('''
+            SELECT p.*,
+                   COALESCE(up.is_favorite,0) as is_favorite,
+                   COALESCE(up.is_read,0) as is_read,
+                   COALESCE(up.tags,'') as tags
+            FROM posts p
+            LEFT JOIN user_post_prefs up ON up.post_id = p.id AND up.user_id = ?
+            WHERE p.id = ?
+        ''', (uid, post_id)).fetchone()
     if not post:
         return "Post not found", 404
     return render_template('post.html', post=post)
 
 
 @app.route('/post/<int:post_id>/edit', methods=['POST'])
+@login_required
 def edit_post(post_id):
     revised = request.form.get('revised_text', '').strip()
     with get_db() as conn:
@@ -384,18 +617,26 @@ def edit_post(post_id):
 
 
 @app.route('/post/<int:post_id>/favorite', methods=['POST'])
+@login_required
 def toggle_favorite(post_id):
+    uid = current_user_id()
     with get_db() as conn:
-        current = conn.execute('SELECT is_favorite FROM posts WHERE id = ?', (post_id,)).fetchone()
-        if current:
-            new_val = 0 if current['is_favorite'] else 1
-            conn.execute('UPDATE posts SET is_favorite = ? WHERE id = ?', (new_val, post_id))
-            conn.commit()
-            return jsonify({'is_favorite': new_val})
-    return jsonify({'error': 'not found'}), 404
+        current = conn.execute(
+            'SELECT is_favorite FROM user_post_prefs WHERE user_id = ? AND post_id = ?',
+            (uid, post_id)
+        ).fetchone()
+        new_val = 0 if (current and current['is_favorite']) else 1
+        conn.execute('''
+            INSERT INTO user_post_prefs (user_id, post_id, is_favorite)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, post_id) DO UPDATE SET is_favorite = excluded.is_favorite
+        ''', (uid, post_id, new_val))
+        conn.commit()
+    return jsonify({'is_favorite': new_val})
 
 
 @app.route('/post/<int:post_id>/revert', methods=['POST'])
+@login_required
 def revert_post(post_id):
     with get_db() as conn:
         conn.execute(
@@ -407,6 +648,7 @@ def revert_post(post_id):
 
 
 @app.route('/post/<int:post_id>/delete', methods=['POST'])
+@login_required
 def delete_post(post_id):
     with get_db() as conn:
         conn.execute('DELETE FROM posts WHERE id = ?', (post_id,))
@@ -415,20 +657,25 @@ def delete_post(post_id):
 
 
 @app.route('/insights')
+@login_required
 def insights_page():
+    uid = current_user_id()
     with get_db() as conn:
         rows = conn.execute('''
             SELECT i.id, i.post_id, i.highlighted_text, i.my_thoughts, i.created_at,
                    p.category, p.post_url
             FROM insights i
             LEFT JOIN posts p ON i.post_id = p.id
+            WHERE i.user_id = ?
             ORDER BY i.id DESC
-        ''').fetchall()
+        ''', (uid,)).fetchall()
     return render_template('insights.html', insights=rows)
 
 
 @app.route('/insights/add', methods=['POST'])
+@login_required
 def add_insight():
+    uid = current_user_id()
     data = request.get_json(force=True)
     post_id = data.get('post_id')
     text = (data.get('highlighted_text') or '').strip()
@@ -436,8 +683,8 @@ def add_insight():
         return jsonify({'error': 'No text'}), 400
     with get_db() as conn:
         conn.execute(
-            'INSERT INTO insights (post_id, highlighted_text) VALUES (?, ?)',
-            (post_id, text)
+            'INSERT INTO insights (user_id, post_id, highlighted_text) VALUES (?, ?, ?)',
+            (uid, post_id, text)
         )
         conn.commit()
         row = conn.execute('SELECT last_insert_rowid() as id').fetchone()
@@ -445,24 +692,29 @@ def add_insight():
 
 
 @app.route('/insights/<int:insight_id>/thoughts', methods=['POST'])
+@login_required
 def update_thoughts(insight_id):
+    uid = current_user_id()
     data = request.get_json(force=True)
     thoughts = (data.get('thoughts') or '').strip()
     with get_db() as conn:
-        conn.execute('UPDATE insights SET my_thoughts = ? WHERE id = ?', (thoughts, insight_id))
+        conn.execute('UPDATE insights SET my_thoughts = ? WHERE id = ? AND user_id = ?', (thoughts, insight_id, uid))
         conn.commit()
     return jsonify({'ok': True})
 
 
 @app.route('/insights/<int:insight_id>/delete', methods=['POST'])
+@login_required
 def delete_insight(insight_id):
+    uid = current_user_id()
     with get_db() as conn:
-        conn.execute('DELETE FROM insights WHERE id = ?', (insight_id,))
+        conn.execute('DELETE FROM insights WHERE id = ? AND user_id = ?', (insight_id, uid))
         conn.commit()
     return jsonify({'ok': True})
 
 
 @app.route('/posts/clear', methods=['POST'])
+@login_required
 def clear_posts():
     with get_db() as conn:
         conn.execute('DELETE FROM posts')
@@ -470,7 +722,38 @@ def clear_posts():
     return jsonify({'cleared': True})
 
 
+@app.route('/insights/clear', methods=['POST'])
+@login_required
+def clear_insights():
+    uid = current_user_id()
+    with get_db() as conn:
+        conn.execute('DELETE FROM insights WHERE user_id = ?', (uid,))
+        conn.commit()
+    return jsonify({'cleared': True})
+
+
+@app.route('/ai-insights/clear', methods=['POST'])
+@login_required
+def clear_ai_analyses():
+    uid = current_user_id()
+    with get_db() as conn:
+        conn.execute('DELETE FROM ai_analyses WHERE user_id = ?', (uid,))
+        conn.commit()
+    return jsonify({'cleared': True})
+
+
+@app.route('/modeled-posts/clear', methods=['POST'])
+@login_required
+def clear_modeled_posts():
+    uid = current_user_id()
+    with get_db() as conn:
+        conn.execute('DELETE FROM modeled_posts WHERE user_id = ?', (uid,))
+        conn.commit()
+    return jsonify({'cleared': True})
+
+
 @app.route('/api/stats')
+@login_required
 def api_stats():
     with get_db() as conn:
         cats = conn.execute(
@@ -486,7 +769,9 @@ def api_stats():
 
 
 @app.route('/ai-insights')
+@login_required
 def ai_insights_page():
+    uid = current_user_id()
     search = request.args.get('q', '').strip()
     with get_db() as conn:
         rows = conn.execute('''
@@ -494,16 +779,17 @@ def ai_insights_page():
                    p.category, p.post_url
             FROM insights i
             LEFT JOIN posts p ON i.post_id = p.id
+            WHERE i.user_id = ?
             ORDER BY i.id DESC
-        ''').fetchall()
+        ''', (uid,)).fetchall()
         if search:
             history = conn.execute(
-                "SELECT * FROM ai_analyses WHERE analysis_text LIKE ? OR feedback LIKE ? ORDER BY id DESC",
-                (f'%{search}%', f'%{search}%')
+                "SELECT * FROM ai_analyses WHERE user_id = ? AND (analysis_text LIKE ? OR feedback LIKE ?) ORDER BY id DESC",
+                (uid, f'%{search}%', f'%{search}%')
             ).fetchall()
         else:
             history = conn.execute(
-                'SELECT * FROM ai_analyses ORDER BY id DESC'
+                'SELECT * FROM ai_analyses WHERE user_id = ? ORDER BY id DESC', (uid,)
             ).fetchall()
     api_key = get_setting('anthropic_api_key', '')
     saved_prompt = get_setting('ai_therapist_prompt', DEFAULT_THERAPIST_PROMPT)
@@ -518,6 +804,7 @@ def ai_insights_page():
 
 
 @app.route('/ai-insights/save-key', methods=['POST'])
+@login_required
 def save_api_key():
     key = (request.get_json(force=True) or {}).get('api_key', '').strip()
     if key:
@@ -526,14 +813,17 @@ def save_api_key():
 
 
 @app.route('/ai-insights/delete-key', methods=['POST'])
+@login_required
 def delete_api_key():
+    uid = current_user_id()
     with get_db() as conn:
-        conn.execute("DELETE FROM settings WHERE key = 'anthropic_api_key'")
+        conn.execute("DELETE FROM settings WHERE user_id = ? AND key = 'anthropic_api_key'", (uid,))
         conn.commit()
     return jsonify({'ok': True})
 
 
 @app.route('/ai-insights/save-prompt', methods=['POST'])
+@login_required
 def save_ai_prompt():
     prompt = (request.get_json(force=True) or {}).get('prompt', '').strip()
     if prompt:
@@ -542,6 +832,7 @@ def save_ai_prompt():
 
 
 @app.route('/ai-insights/analyze', methods=['POST'])
+@login_required
 def ai_analyze():
     if not _has_anthropic:
         return jsonify({'error': 'anthropic package not installed. Run: pip install anthropic'}), 500
@@ -554,16 +845,19 @@ def ai_analyze():
     prompt = data.get('prompt', '').strip() or DEFAULT_THERAPIST_PROMPT
     current_feelings = (data.get('current_feelings') or '').strip()
 
+    uid = current_user_id()
     with get_db() as conn:
         insight_rows = conn.execute('''
             SELECT i.highlighted_text, i.my_thoughts, p.category
             FROM insights i
             LEFT JOIN posts p ON i.post_id = p.id
+            WHERE i.user_id = ?
             ORDER BY i.id DESC
-        ''').fetchall()
+        ''', (uid,)).fetchall()
         # Pull past feedback for context
         past_feedback = conn.execute(
-            "SELECT feedback, created_at FROM ai_analyses WHERE feedback != '' AND feedback IS NOT NULL ORDER BY id DESC LIMIT 5"
+            "SELECT feedback, created_at FROM ai_analyses WHERE user_id = ? AND feedback != '' AND feedback IS NOT NULL ORDER BY id DESC LIMIT 5",
+            (uid,)
         ).fetchall()
 
     if not insight_rows:
@@ -618,8 +912,8 @@ def ai_analyze():
         # Save to history
         with get_db() as conn:
             conn.execute(
-                'INSERT INTO ai_analyses (analysis_text, prompt_used) VALUES (?, ?)',
-                (result, prompt)
+                'INSERT INTO ai_analyses (user_id, analysis_text, prompt_used) VALUES (?, ?, ?)',
+                (uid, result, prompt)
             )
             conn.commit()
             row = conn.execute('SELECT last_insert_rowid() as id').fetchone()
@@ -629,24 +923,29 @@ def ai_analyze():
 
 
 @app.route('/ai-insights/<int:analysis_id>/feedback', methods=['POST'])
+@login_required
 def save_analysis_feedback(analysis_id):
+    uid = current_user_id()
     data = request.get_json(force=True) or {}
     feedback = (data.get('feedback') or '').strip()
     with get_db() as conn:
-        conn.execute('UPDATE ai_analyses SET feedback = ? WHERE id = ?', (feedback, analysis_id))
+        conn.execute('UPDATE ai_analyses SET feedback = ? WHERE id = ? AND user_id = ?', (feedback, analysis_id, uid))
         conn.commit()
     return jsonify({'ok': True})
 
 
 @app.route('/ai-insights/<int:analysis_id>/delete', methods=['POST'])
+@login_required
 def delete_analysis(analysis_id):
+    uid = current_user_id()
     with get_db() as conn:
-        conn.execute('DELETE FROM ai_analyses WHERE id = ?', (analysis_id,))
+        conn.execute('DELETE FROM ai_analyses WHERE id = ? AND user_id = ?', (analysis_id, uid))
         conn.commit()
     return jsonify({'ok': True})
 
 
 @app.route('/post/<int:post_id>/category', methods=['POST'])
+@login_required
 def update_category(post_id):
     data = request.get_json(force=True) or {}
     category = (data.get('category') or '').strip()
@@ -659,30 +958,45 @@ def update_category(post_id):
 
 
 @app.route('/post/<int:post_id>/tags', methods=['POST'])
+@login_required
 def update_tags(post_id):
+    uid = current_user_id()
     data = request.get_json(force=True) or {}
     tags = data.get('tags', [])
     if not isinstance(tags, list):
         tags = []
+    tags_str = json.dumps(tags)
     with get_db() as conn:
-        conn.execute('UPDATE posts SET tags = ? WHERE id = ?', (json.dumps(tags), post_id))
+        conn.execute('''
+            INSERT INTO user_post_prefs (user_id, post_id, tags)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, post_id) DO UPDATE SET tags = excluded.tags
+        ''', (uid, post_id, tags_str))
         conn.commit()
     return jsonify({'ok': True, 'tags': tags})
 
 
 @app.route('/post/<int:post_id>/read', methods=['POST'])
+@login_required
 def toggle_read(post_id):
+    uid = current_user_id()
     with get_db() as conn:
-        current = conn.execute('SELECT is_read FROM posts WHERE id = ?', (post_id,)).fetchone()
-        if current:
-            new_val = 0 if current['is_read'] else 1
-            conn.execute('UPDATE posts SET is_read = ? WHERE id = ?', (new_val, post_id))
-            conn.commit()
-            return jsonify({'is_read': new_val})
-    return jsonify({'error': 'not found'}), 404
+        current = conn.execute(
+            'SELECT is_read FROM user_post_prefs WHERE user_id = ? AND post_id = ?',
+            (uid, post_id)
+        ).fetchone()
+        new_val = 0 if (current and current['is_read']) else 1
+        conn.execute('''
+            INSERT INTO user_post_prefs (user_id, post_id, is_read)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, post_id) DO UPDATE SET is_read = excluded.is_read
+        ''', (uid, post_id, new_val))
+        conn.commit()
+    return jsonify({'is_read': new_val})
 
 
 @app.route('/stats')
+@login_required
 def stats_page():
     with get_db() as conn:
         cats = conn.execute(
@@ -713,6 +1027,7 @@ def stats_page():
 
 
 @app.route('/backup')
+@login_required
 def backup():
     with get_db() as conn:
         posts = [dict(r) for r in conn.execute('SELECT * FROM posts').fetchall()]
@@ -736,6 +1051,7 @@ def backup():
 
 
 @app.route('/restore', methods=['POST'])
+@login_required
 def restore():
     try:
         body = request.get_json(force=True)
@@ -770,6 +1086,7 @@ def restore():
 
 
 @app.route('/bulk-label')
+@login_required
 def bulk_label():
     with get_db() as conn:
         posts = conn.execute(
@@ -815,10 +1132,12 @@ Example posts from your library (for voice and style reference):
 
 
 @app.route('/modeled-posts')
+@login_required
 def modeled_posts_page():
+    uid = current_user_id()
     with get_db() as conn:
         saved = conn.execute(
-            'SELECT * FROM modeled_posts ORDER BY id DESC'
+            'SELECT * FROM modeled_posts WHERE user_id = ? ORDER BY id DESC', (uid,)
         ).fetchall()
         total_posts = conn.execute('SELECT COUNT(*) as n FROM posts').fetchone()['n']
     api_key = get_setting('anthropic_api_key', '')
@@ -834,6 +1153,7 @@ def modeled_posts_page():
 
 
 @app.route('/modeled-posts/generate', methods=['POST'])
+@login_required
 def modeled_posts_generate():
     if not _has_anthropic:
         return jsonify({'error': 'anthropic package not installed. Run: pip install anthropic'}), 500
@@ -878,10 +1198,11 @@ def modeled_posts_generate():
         )
         post_text = message.content[0].text.strip()
 
+        uid = current_user_id()
         with get_db() as conn:
             conn.execute(
-                'INSERT INTO modeled_posts (post_text, attachment_style, topic) VALUES (?, ?, ?)',
-                (post_text, attachment_style, topic)
+                'INSERT INTO modeled_posts (user_id, post_text, attachment_style, topic) VALUES (?, ?, ?, ?)',
+                (uid, post_text, attachment_style, topic)
             )
             conn.commit()
             row = conn.execute('SELECT last_insert_rowid() as id').fetchone()
@@ -892,23 +1213,157 @@ def modeled_posts_generate():
 
 
 @app.route('/modeled-posts/<int:post_id>/favorite', methods=['POST'])
+@login_required
 def modeled_post_favorite(post_id):
+    uid = current_user_id()
     with get_db() as conn:
-        current = conn.execute('SELECT is_favorite FROM modeled_posts WHERE id = ?', (post_id,)).fetchone()
+        current = conn.execute('SELECT is_favorite FROM modeled_posts WHERE id = ? AND user_id = ?', (post_id, uid)).fetchone()
         if current:
             new_val = 0 if current['is_favorite'] else 1
-            conn.execute('UPDATE modeled_posts SET is_favorite = ? WHERE id = ?', (new_val, post_id))
+            conn.execute('UPDATE modeled_posts SET is_favorite = ? WHERE id = ? AND user_id = ?', (new_val, post_id, uid))
             conn.commit()
             return jsonify({'is_favorite': new_val})
     return jsonify({'error': 'not found'}), 404
 
 
 @app.route('/modeled-posts/<int:post_id>/delete', methods=['POST'])
+@login_required
 def modeled_post_delete(post_id):
+    uid = current_user_id()
     with get_db() as conn:
-        conn.execute('DELETE FROM modeled_posts WHERE id = ?', (post_id,))
+        conn.execute('DELETE FROM modeled_posts WHERE id = ? AND user_id = ?', (post_id, uid))
         conn.commit()
     return jsonify({'ok': True})
+
+
+@app.route('/settings/github-token', methods=['POST'])
+@login_required
+def save_github_token():
+    token = (request.get_json(force=True) or {}).get('token', '').strip()
+    if token:
+        set_setting('github_token', token, user_id=1)
+    return jsonify({'ok': True})
+
+
+@app.route('/settings/github-token/delete', methods=['POST'])
+@login_required
+def delete_github_token():
+    with get_db() as conn:
+        conn.execute("DELETE FROM settings WHERE user_id = 1 AND key = 'github_token'")
+        conn.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/github/test', methods=['POST'])
+@login_required
+def github_test():
+    """Verify the saved token can read the TODO.md from GitHub."""
+    import urllib.request as urlreq
+    import base64
+
+    github_token = get_setting('github_token', '', user_id=1)
+    if not github_token:
+        return jsonify({'ok': False, 'error': 'No token saved yet'})
+
+    API = 'https://api.github.com/repos/btaira/AttachmentLens/contents/TODO.md'
+    HEADERS = {
+        'Authorization': f'token {github_token}',
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+    }
+    try:
+        req = urlreq.Request(API)
+        for k, v in HEADERS.items():
+            req.add_header(k, v)
+        with urlreq.urlopen(req, timeout=10) as resp:
+            file_data = json.loads(resp.read().decode())
+        return jsonify({'ok': True, 'sha': file_data.get('sha', '')[:8], 'size': file_data.get('size')})
+    except urlreq.HTTPError as e:
+        body = e.read().decode('utf-8', errors='replace')
+        try:
+            msg = json.loads(body).get('message', body[:200])
+        except Exception:
+            msg = body[:200]
+        return jsonify({'ok': False, 'error': f'HTTP {e.code}: {msg}'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
+
+
+@app.route('/feature-request', methods=['POST'])
+@login_required
+def feature_request():
+    import urllib.request as urlreq
+    import base64
+
+    data = request.get_json(force=True) or {}
+    text = (data.get('text') or '').strip()
+    username = (session.get('username') or 'unknown').strip()
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+
+    github_token = get_setting('github_token', '', user_id=1)
+    if not github_token:
+        return jsonify({'error': 'No GitHub token configured. Ask an admin to add one in ⚙️ Admin → Import Posts.'}), 400
+
+    OWNER = 'btaira'
+    REPO  = 'AttachmentLens'
+    PATH  = 'TODO.md'
+    API   = f'https://api.github.com/repos/{OWNER}/{REPO}/contents/{PATH}'
+
+    def gh_request(url, data=None, method=None):
+        """Build a GitHub API request using add_header (more reliable than dict constructor)."""
+        req = urlreq.Request(url, data=data, method=method)
+        req.add_header('Authorization', f'token {github_token}')
+        req.add_header('Accept', 'application/vnd.github+json')
+        req.add_header('X-GitHub-Api-Version', '2022-11-28')
+        if data:
+            req.add_header('Content-Type', 'application/json')
+        return req
+
+    try:
+        # 1. GET current file to obtain sha + content
+        with urlreq.urlopen(gh_request(API), timeout=15) as resp:
+            file_data = json.loads(resp.read().decode())
+
+        current_content = base64.b64decode(file_data['content']).decode('utf-8')
+        file_sha = file_data['sha']
+
+        # 2. Prepend entry under "## High Priority"
+        date_str = datetime.utcnow().strftime('%Y-%m-%d')
+        entry = f'- [ ] **[Requested by {username}, {date_str}]** {text}'
+
+        marker = '## High Priority'
+        if marker in current_content:
+            idx = current_content.index(marker) + len(marker)
+            insert_at = idx
+            while insert_at < len(current_content) and current_content[insert_at] == '\n':
+                insert_at += 1
+            new_content = current_content[:insert_at] + '\n' + entry + '\n' + current_content[insert_at:]
+        else:
+            new_content = current_content.rstrip() + '\n\n' + entry + '\n'
+
+        # 3. PUT updated file back
+        payload = json.dumps({
+            'message': f'feat: feature request from {username} — {text[:60]}',
+            'content': base64.b64encode(new_content.encode('utf-8')).decode(),
+            'sha': file_sha,
+        }).encode('utf-8')
+
+        with urlreq.urlopen(gh_request(API, data=payload, method='PUT'), timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+
+        commit_url = result.get('commit', {}).get('html_url', '')
+        return jsonify({'ok': True, 'commit': commit_url})
+
+    except urlreq.HTTPError as e:
+        body = e.read().decode('utf-8', errors='replace')
+        try:
+            msg = json.loads(body).get('message', body)
+        except Exception:
+            msg = body[:200]
+        return jsonify({'error': f'GitHub {e.code}: {msg}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'{type(e).__name__}: {e}'}), 500
 
 
 if __name__ == '__main__':
