@@ -40,9 +40,9 @@
   .library-table th { text-align: left; padding: 8px 10px; color: var(--text); font-weight: 600; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
   .library-table td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: top; overflow: hidden; }
   .library-table tr:hover td { background: var(--surface2); }
-  .library-table col.col-post    { width: 80%; }
+  .library-table col.col-post    { width: 63%; }
   .library-table col.col-style   { width: 8%; }
-  .library-table col.col-date    { width: 5%; }
+  .library-table col.col-date    { width: 14%; }
   .library-table col.col-pop     { width: 4%; }
   .library-table col.col-status  { width: 7%; }
   .library-table .excerpt-cell .first-line { font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 3px; white-space: normal; }
@@ -239,6 +239,7 @@
                 data-likes="{{ p.likes or 0 }}"
                 data-comments="{{ p.comments or 0 }}"
                 data-id="{{ p.id }}"
+                data-date="{{ p.date_label or '' }}"
                 data-read="{{ '1' if p.is_read else '0' }}">
               <td onclick="event.stopPropagation()" style="text-align:center;padding:6px 4px">
                 <button class="fav-btn" onclick="toggleFav({{ p.id }}, this)" title="{{ 'Remove favorite' if p.is_favorite else 'Add to favorites' }}">{{ '⭐' if p.is_favorite else '☆' }}</button>
@@ -252,7 +253,7 @@
                 {% set rest = p.original_text[first_sentence(p.original_text)|length:].strip() %}
                 {% if rest %}<div class="rest">{{ rest }}</div>{% endif %}
               </td>
-              <td style="white-space:nowrap;color:var(--text)">{{ p.date_label or '—' }}</td>
+              <td style="white-space:nowrap;color:var(--text);font-size:12px">{{ p.date_label or '—' }}</td>
               <td>
                 {% set has_detail = (p.likes and p.likes > 0) or (p.comments and p.comments > 0) %}
                 {% if has_detail %}
@@ -298,12 +299,20 @@ function sortTable(by) {
   if (!tbody) return;
   const rows = Array.from(tbody.querySelectorAll('tr'));
   rows.sort((a, b) => {
-    if (by === 'likes')    return (parseInt(b.dataset.likes) || 0)    - (parseInt(a.dataset.likes) || 0);
-    if (by === 'comments') return (parseInt(b.dataset.comments) || 0) - (parseInt(a.dataset.comments) || 0);
-    if (by === 'newest')   return (parseInt(b.dataset.id) || 0)       - (parseInt(a.dataset.id) || 0);
-    if (by === 'oldest')   return (parseInt(a.dataset.id) || 0)       - (parseInt(b.dataset.id) || 0);
-    // default: popularity
-    return (parseInt(b.dataset.popularity) || 0) - (parseInt(a.dataset.popularity) || 0);
+    const likes    = d => parseInt(d.dataset.likes)    || 0;
+    const comments = d => parseInt(d.dataset.comments) || 0;
+    const pop      = d => likes(d) + comments(d);
+    if (by === 'likes')      return likes(b)    - likes(a);
+    if (by === 'comments')   return comments(b) - comments(a);
+    if (by === 'popularity') return pop(b)       - pop(a);
+    if (by === 'newest' || by === 'oldest') {
+      const dateVal = d => {
+        const ms = d.dataset.date ? new Date(d.dataset.date).getTime() : NaN;
+        return isNaN(ms) ? parseInt(d.dataset.id) || 0 : ms;
+      };
+      return by === 'newest' ? dateVal(b) - dateVal(a) : dateVal(a) - dateVal(b);
+    }
+    return pop(b) - pop(a); // default
   });
   rows.forEach(r => tbody.appendChild(r));
   localStorage.setItem('libSort', by);

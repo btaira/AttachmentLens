@@ -161,14 +161,125 @@
     await wait(1500);
   }
 
-  // Returns post body elements using multiple selectors for resilience
+  // Walk up N levels from el to reach the post container (engagement bar confirmed at +4 above body)
+  function getPostScope(el, levels = 5) {
+    let n = el;
+    for (let i = 0; i < levels && n.parentElement; i++) n = n.parentElement;
+    return n;
+  }
+
+  // Fast static date extraction — checks only timestamp-related elements, not all aria-labels
+  function extractDateStatic(art) {
+    if (!art) return { date: '', lnk: null };
+    const MONTH = /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/i;
+    const DATE_FULL = /\b(20\d{2}|19\d{2})\b|at \d{1,2}:\d{2}/i;
+
+    // 1. <time datetime="..."> — standard HTML, most reliable if FB uses it
+    for (const el of art.querySelectorAll('time[datetime], [datetime]')) {
+      const dt = el.getAttribute('datetime') || '';
+      if (dt) return { date: new Date(dt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }), lnk: null };
+    }
+
+    // 2. data-utime Unix timestamp
+    const uEl = art.querySelector('[data-utime]');
+    if (uEl) {
+      const ts = parseInt(uEl.getAttribute('data-utime'));
+      if (ts) return { date: new Date(ts * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), lnk: null };
+    }
+
+    // 3. Timestamp link — exclude comment links, get the post's own header link
+    const lnk = art.querySelector('a[href*="/posts/"]:not([href*="comment_id"]),a[href*="story_fbid"]:not([href*="comment_id"]),a[href*="permalink"]:not([href*="comment_id"])');
+    if (lnk) {
+      // Check every attribute on the link for a date
+      for (const attr of lnk.getAttributeNames()) {
+        const val = lnk.getAttribute(attr) || '';
+        if ((MONTH.test(val) || DATE_FULL.test(val)) && val.length < 100) return { date: val, lnk: null };
+      }
+      // Check attributes on children of the link
+      for (const s of lnk.querySelectorAll('*')) {
+        for (const attr of s.getAttributeNames()) {
+          const val = s.getAttribute(attr) || '';
+          if ((MONTH.test(val) || DATE_FULL.test(val)) && val.length < 100) return { date: val, lnk: null };
+        }
+        const t = (s.innerText || '').trim();
+        if ((MONTH.test(t) || DATE_FULL.test(t)) && t.length < 60) return { date: t, lnk: null };
+      }
+      // Return the link element for date debug logging — innerText is the relative time
+      return { date: lnk.innerText?.trim() || '', lnk };
+    }
+
+    // 4. data-store JSON fallback
+    for (const el of art.querySelectorAll('[data-store]')) {
+      try {
+        const ds = JSON.parse(el.getAttribute('data-store') || '{}');
+        if (ds.time) return { date: new Date(ds.time * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), lnk: null };
+      } catch(e) {}
+    }
+    return { date: '', lnk: null };
+  }
+
+  // Convert Facebook's relative timestamp text to an actual date.
+  // Facebook shows "3h", "2d", "Mon", "January 5" etc. on the timestamp link.
+  // Since we know the current time when the script runs, we can compute it.
+  function resolveRelativeDate(rel) {
+    if (!rel) return '';
+    const now = new Date();
+    const s = rel.trim();
+
+    // "Xm" minutes ago
+    let m = s.match(/^(\d+)\s*m$/i);
+    if (m) return fmtDate(new Date(now - parseInt(m[1]) * 60000));
+
+    // "Xh" hours ago
+    m = s.match(/^(\d+)\s*h$/i);
+    if (m) return fmtDate(new Date(now - parseInt(m[1]) * 3600000));
+
+    // "Xd" days ago
+    m = s.match(/^(\d+)\s*d$/i);
+    if (m) return fmtDate(new Date(now - parseInt(m[1]) * 86400000));
+
+    // "Xw" weeks ago
+    m = s.match(/^(\d+)\s*w$/i);
+    if (m) return fmtDate(new Date(now - parseInt(m[1]) * 604800000));
+
+    // "Xy" years ago
+    m = s.match(/^(\d+)\s*y$/i);
+    if (m) return fmtDate(new Date(now - parseInt(m[1]) * 31536000000));
+
+    // "Yesterday"
+    if (/^yesterday$/i.test(s)) return fmtDate(new Date(now - 86400000));
+
+    // Day name: "Monday", "Tuesday" etc. — find the most recent past occurrence
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const dayIdx = DAYS.findIndex(d => new RegExp('^' + d, 'i').test(s));
+    if (dayIdx >= 0) {
+      const diff = (now.getDay() - dayIdx + 7) % 7 || 7;
+      return fmtDate(new Date(now - diff * 86400000));
+    }
+
+    // Already a formatted date string — return as-is
+    return s;
+  }
+
+  function fmtDate(d) {
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  function parseKM(s) {
+    s = (s || '').replace(/,/g, '').trim();
+    if (/[Kk]$/.test(s)) return Math.round(parseFloat(s) * 1000);
+    if (/[Mm]$/.test(s)) return Math.round(parseFloat(s) * 1000000);
+    return parseInt(s) || 0;
+  }
+
+  // Returns top-level post body elements (excludes nested shared-post previews)
   function getPostBodies() {
-    // Primary: data-ad-comet-preview="message"
-    let nodes = [...document.querySelectorAll('[data-ad-comet-preview="message"]')];
-    // Fallback: data-ad-preview="message"
+    let nodes = [...document.querySelectorAll('[data-ad-comet-preview="message"]')]
+      // Filter out elements that are nested inside another matching element (shared post previews)
+      .filter(n => !n.parentElement?.closest('[data-ad-comet-preview="message"]'));
     if (nodes.length === 0)
-      nodes = [...document.querySelectorAll('[data-ad-preview="message"]')];
-    // Fallback: look inside role=article for substantial dir=auto text blocks
+      nodes = [...document.querySelectorAll('[data-ad-preview="message"]')]
+        .filter(n => !n.parentElement?.closest('[data-ad-preview="message"]'));
     if (nodes.length === 0) {
       nodes = [...document.querySelectorAll('[role="article"]')]
         .map(art => art.querySelector('[dir="auto"]'))
@@ -183,12 +294,25 @@
       [...body.querySelectorAll('[role="button"]')]
         .filter(el => el.innerText?.trim() === 'See more')
         .forEach(btn => { try { btn.click(); } catch(e) {} });
-      let node = body, postUrl = '', dateLabel = '';
-      for (let d = 0; d < 15; d++) {
-        node = node.parentElement; if (!node) break;
-        const lnk = node.querySelector('a[href*="/posts/"],a[href*="story_fbid"]');
-        if (lnk) { postUrl = lnk.href; dateLabel = lnk.innerText?.trim() || ''; break; }
+
+      // Walk 5 levels up from the post body — engagement bar is at +4, this gives us full coverage
+      const artScope = getPostScope(body, 5);
+      let postUrl = '', dateLabel = '', dateLnk = null;
+      // Find timestamp link by text pattern — FB's timestamp always has short clean text like
+      // "3h", "2d", "Monday", "January 5". Person names and obfuscated links never match.
+      const TS_PAT = /^(\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
+      const tsLnk = [...artScope.querySelectorAll('a[href]')].find(a => {
+        try {
+          const t = (a.innerText || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+          return t.length > 0 && t.length <= 25 && TS_PAT.test(t);
+        } catch(e) { return false; }
+      });
+      if (tsLnk) {
+        postUrl = tsLnk.href;
+        const relText = (tsLnk.innerText || '').replace(/\s+/g, ' ').trim();
+        dateLabel = relText ? (resolveRelativeDate(relText) || relText) : '';
       }
+
       const key = postUrl || body.innerText?.trim().substring(0, 60);
       if (seen.has(key)) continue; seen.add(key);
 
@@ -200,65 +324,76 @@
       if (!text || text.length < 30) continue;
 
       // ── Likes & comments extraction ──────────────────────────────
-      function parseKM(s) {
-        s = (s || '').replace(/,/g, '').trim();
-        if (/[Kk]$/.test(s)) return Math.round(parseFloat(s) * 1000);
-        if (/[Mm]$/.test(s)) return Math.round(parseFloat(s) * 1000000);
-        return parseInt(s) || 0;
-      }
       let likes = 0, comments = 0;
+      // Facebook's engagement bar (reactions, comments) lives OUTSIDE role="article",
+      // as a sibling in the parent container. artScope already covers article + siblings.
+      const artEl = artScope;
 
-      // Walk up to [role="article"] — Facebook's post container
-      let art = body;
-      for (let d = 0; d < 15; d++) {
-        if (!art.parentElement) break;
-        art = art.parentElement;
-        if (art.getAttribute('role') === 'article') break;
-      }
-
-      // 1. Reactions (likes): Facebook splits by type in aria-labels like "Like: 56 people",
-      //    "Love: 15 people", "Care: 3 people", etc. Sum them all for total reaction count.
-      const REACTION_TYPES = /^(Like|Love|Care|Haha|Wow|Sad|Angry):\s*([\d,.]+[KkMm]?)\s*people/i;
-      for (const el of art.querySelectorAll('[aria-label]')) {
+      // Strategy 1: aria-label on the reaction summary button
+      // FB currently uses: "75 people reacted" OR "Like: 56 people, Love: 15 people" tooltip style
+      for (const el of artEl.querySelectorAll('[aria-label]')) {
         const lbl = (el.getAttribute('aria-label') || '').trim();
-        const m = lbl.match(REACTION_TYPES);
-        if (m) { likes += parseKM(m[2]); }
-      }
-
-      // 2. Engagement block: Facebook renders a short text block like "75 8 17"
-      //    meaning [total-reactions, comments, shares]. Walk up, find it, take index [1].
-      //    This block appears as a text node / innerText of a small container.
-      //    Match: 1–5 digits, space, 1–5 digits, space, 1–5 digits (no other text).
-      const ENGAGE_RE = /^(\d{1,5})\s+(\d{1,5})\s+(\d{1,5})$/;
-      const allEls = art.querySelectorAll('*');
-      for (const el of allEls) {
-        // Only look at leaf-ish nodes whose direct text matches pattern
-        const t = (el.innerText || '').trim();
-        const m = t.match(ENGAGE_RE);
-        if (m) {
-          // m[1]=reactions, m[2]=comments, m[3]=shares
-          // If we already got likes from aria-labels, trust that; otherwise use m[1]
-          if (!likes) likes = parseInt(m[1]);
-          comments = parseInt(m[2]);
-          break;
+        // Per-type tooltip format: "Like: 56 people" (appears in reaction hover tooltip elements)
+        const mType = lbl.match(/^(Like|Love|Care|Haha|Wow|Sad|Angry):\s*([\d,.]+[KkMm]?)\s*people/i);
+        if (mType) { likes += parseKM(mType[2]); continue; }
+        // Aggregate format: "75 people reacted" or "75 reactions"
+        if (!likes) {
+          const mAgg = lbl.match(/([\d,.]+[KkMm]?)\s*(?:people\s+)?react(?:ed|ions?)?/i);
+          if (mAgg) likes = parseKM(mAgg[1]);
+        }
+        // Comments in aria-label: "8 comments"
+        if (!comments) {
+          const mCmt = lbl.match(/^([\d,.]+[KkMm]?)\s*[Cc]omments?$/);
+          if (mCmt) comments = parseKM(mCmt[1]);
         }
       }
 
-      // 3. Fallback: look for "X Comments" or "X Comment" link text
-      if (comments === 0) {
-        for (const el of art.querySelectorAll('a, span')) {
+      // Strategy 2a: element whose own text includes "X comments" (e.g. "View 8 comments")
+      // Use   handling for non-breaking spaces FB sometimes inserts
+      if (!comments) {
+        for (const el of artEl.querySelectorAll('a, span, button')) {
+          const t = (el.innerText || '').replace(/[ \s]+/g, ' ').trim();
+          const m = t.match(/\b([\d,.]+[KkMm]?)\s*[Cc]omments?\b/i);
+          if (m) { comments = parseKM(m[1]); break; }
+        }
+      }
+
+      // Strategy 2b: FB splits number and "comment" into sibling spans —
+      // find a leaf number span whose PARENT's full text mentions "comment"
+      if (!comments) {
+        for (const el of artEl.querySelectorAll('span, a')) {
           const t = (el.innerText || '').trim();
-          if (/^\d[\d,.]*\s*[KkMm]?\s*[Cc]omments?$/.test(t)) {
-            const m = t.match(/^([\d,.]*\d[KkMm]?)/);
-            if (m) { comments = parseKM(m[1]); break; }
+          if (!/^\d[\d,.]*[KkMm]?$/.test(t)) continue; // must be a bare number
+          const pText = (el.parentElement?.innerText || '').replace(/[ \s]+/g, ' ').trim();
+          if (/\bcomments?\b/i.test(pText) && pText.length < 80) {
+            comments = parseKM(t); break;
           }
         }
       }
 
+      // Strategy 2c: scan ALL small elements for any text mentioning comments count
+      // Catches "View all 8 comments", "8 Comments", "8\xa0comments" etc.
+      if (!comments) {
+        for (const el of artEl.querySelectorAll('*')) {
+          if (el.children.length > 3) continue;
+          const t = (el.innerText || '').replace(/[\s\xa0]+/g, ' ').trim();
+          if (t.length > 60) continue;
+          const m = t.match(/\b([\d,.]+[KkMm]?)\s*[Cc]omments?\b/) ||
+                    t.match(/[Vv]iew\s+(?:all\s+)?([\d,.]+[KkMm]?)\s*[Cc]omments?/);
+          if (m) { comments = parseKM(m[1]); break; }
+        }
+      }
+
+      // Strategy 3: For short threads FB renders comments inline with no count label.
+      // Count aria-label="Comment by ..." elements — each visible comment has one.
+      if (!comments) {
+        comments = artEl.querySelectorAll('[aria-label^="Comment by"]').length;
+      }
+
       const popularity = likes + comments;
 
-      collected.push({ date: dateLabel, url: postUrl, text, likes, comments, popularity });
-      console.log('✅ [' + collected.length + '/' + TARGET + '] 👍' + likes + ' 💬' + comments + ' — ' + text.replace(/\n/g,' ').substring(0,60) + '...');
+      collected.push({ date: dateLabel, _dateLnk: dateLnk, _scope: artScope, url: postUrl, text, likes, comments, popularity });
+      console.log('✅ [' + collected.length + '/' + TARGET + '] 📅' + (dateLabel || '(hover pending)') + ' 👍' + likes + ' 💬' + comments + ' — ' + text.replace(/\n/g,' ').substring(0,60) + '...');
     }
   }
 
@@ -277,6 +412,19 @@
   }
 
   if (!collected.length) { console.log('❌ Nothing found.'); return; }
+
+  // Second pass: resolve relative timestamps ("1h", "3d", "Monday") to real dates
+  let resolved = 0;
+  for (const p of collected) {
+    if (p.date) {
+      const real = resolveRelativeDate(p.date);
+      if (real && real !== p.date) { p.date = real; resolved++; }
+    }
+    delete p._dateLnk;
+    delete p._scope;
+  }
+  if (resolved) console.log('🗓 Resolved ' + resolved + ' relative dates');
+
   window.derekPosts = collected;
   console.log('\n✅ DONE — ' + collected.length + ' posts. Copying to clipboard...');
   await wait(800);

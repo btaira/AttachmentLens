@@ -6,44 +6,61 @@ A personal research tool for exploring attachment styles, relationship patterns,
 
 AttachmentLens helps you build self-awareness around attachment patterns by:
 
-- **Importing** posts about attachment theory and relationships from various sources
+- **Importing** posts about attachment theory and relationships from Facebook via a browser console scraper
 - **Auto-classifying** content into attachment styles (Anxious, Avoidant, Fearful, Secure, Healing & Growth)
 - **Highlighting & annotating** passages that resonate with you
 - **Analyzing** your collective highlights with Claude AI to uncover personal patterns
-- **Tracking** favorites, reading progress, and analysis history
+- **Tracking** favorites, reading progress, post dates, and analysis history
 
 This is a personal journaling and research tool inspired by attachment theory frameworks. It's designed to support self-reflection and conversations with therapists or counselors.
 
 ## Features
 
-✨ **Smart Classification**
+🔍 **Smart Classification**
 - Automatic keyword-based categorization of posts into 6 attachment-related categories
-- Manual override capability for posts (coming soon)
-- Search and filter by category
+- Manual override on any post detail page
+- Multi-tag support alongside the primary category
+- Search and filter by category, read status, keyword, or date
 
 📝 **Annotation & Insights**
 - Highlight text from any post and save with personal reflections
+- Floating "Save to Insights" button appears on text selection
 - Searchable insights library
-- Track which posts have been read
+- Track which posts have been read (read/unread toggle + filter)
 
 🧠 **AI-Powered Analysis**
 - Generate personalized insights from your highlights using Claude API
 - Customizable AI prompt (default: attachment-aware therapist persona)
 - Analysis history with feedback tracking
-- Past reflections feed into future analyses for contextual continuity
+- Past reflections and current feelings feed into future analyses for contextual continuity
+
+🎭 **Modeled Posts**
+- Generate new posts in Derek Hart's attachment style using AI
+- Choose attachment style + topic; get a post that mirrors his voice
 
 ⭐ **Organization & Tracking**
-- Favorite posts for quick access
-- Like/comment metrics for social relevance
-- Edit and personalize post content
+- Favorite posts for quick access from the home page
+- Like/comment metrics captured from Facebook; sort by popularity, likes, comments
+- Post dates captured and resolved from Facebook's relative timestamps ("3h" → real date)
+- Sort library by newest, oldest, popularity, likes, or comments
 - Full-text search across your library
+- Edit and personalize post content with word-diff view
+
+📊 **Stats Dashboard**
+- Charts: category breakdown, read vs. unread, import timeline, top posts by popularity
+
+⚙️ **Admin Tools** (in nav dropdown)
+- Import Posts — Facebook console scraper with copy-to-clipboard, auto-scroll, bulk import
+- Bulk Re-Label — table view with quick category dropdown per row; filter by category/read status/keyword
+- Backup & Restore — export full database to JSON; re-import to restore
 
 🎨 **User Experience**
 - Dark theme optimized for comfort and focus
-- Adjustable font sizes (80%–200%)
-- Sticky navigation bar
+- Adjustable font sizes (80%–200%) via 🔤 Text control in nav
+- Sticky navigation bar with admin dropdown on the right
 - Responsive design for desktop and tablet
-- Clean, accessibility-minded UI
+
+---
 
 ## Getting Started
 
@@ -57,313 +74,160 @@ This is a personal journaling and research tool inspired by attachment theory fr
 - Flask 3.0+
 
 **Optional:**
-- Anthropic API key for AI analysis features
-
-### Local Installation (Python)
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/AttachmentLens.git
-   cd AttachmentLens
-   ```
-
-2. **Create a virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Run the app**
-   ```bash
-   python app.py
-   ```
-
-   The app will start at `http://localhost:5000`
+- Anthropic API key for AI analysis and Modeled Posts features
 
 ### Local Installation (Docker) — Recommended
 
-Fastest way to get started with persistent data:
-
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/AttachmentLens.git
 cd AttachmentLens
-
-# Start with Docker Compose
 docker-compose up
 ```
 
-Visit `http://localhost:5000` — your database will be saved to `./data/posts.db` and persist across restarts.
+Visit `http://localhost:5000` — your database persists in `./data/posts.db`.
 
-**Benefits of Docker:**
-- ✅ No Python setup needed
-- ✅ Data persists in `./data/` folder
-- ✅ Isolated environment
-- ✅ One-command startup: `docker-compose up`
+### Local Installation (Python)
 
-See [DOCKER.md](DOCKER.md) for more details.
+```bash
+git clone https://github.com/yourusername/AttachmentLens.git
+cd AttachmentLens
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python app.py
+```
+
+The app starts at `http://localhost:5000`.
 
 ### First Time Setup
 
-1. **Import posts** — Visit `/import` to upload JSON data from your sources
-2. **Explore & annotate** — Browse posts, mark favorites, and highlight passages
-3. (Optional) **Set up AI analysis** — Add your Anthropic API key in the AI Insights page to unlock AI analysis
+1. **Import posts** — Open ⚙️ Admin → 📥 Import Posts; follow the steps to run the Facebook console scraper and paste the JSON
+2. **Explore & annotate** — Browse posts, mark favorites, highlight passages
+3. (Optional) **Set up AI** — Add your Anthropic API key on the 🧠 AI Insights page
+
+---
 
 ## Importing Data
 
-### JSON Format
+### Facebook Scraper
 
-Posts should be a JSON array with this structure:
+The Import Posts page provides a console script you paste into your browser's developer tools while on Derek Hart's Facebook profile. It:
+
+- Auto-scrolls to collect posts up to your target count
+- Captures post text, date, URL, likes, and comment count
+- Resolves relative timestamps ("3h ago") to real dates
+- Outputs JSON you paste back into the import form
+
+### JSON Format
 
 ```json
 [
   {
-    "text": "The full text of the post or article excerpt",
-    "date": "2024-05-15",
-    "url": "https://source.com/post-id",
+    "text": "The full text of the post",
+    "date": "May 30, 2026",
+    "url": "https://www.facebook.com/derek.michael.hart/posts/...",
     "likes": 42,
-    "comments": 18
+    "comments": 8
   }
 ]
 ```
 
-**Minimum requirements:**
-- `text`: At least 30 characters
-- Other fields are optional
+Re-importing existing posts updates likes, comments, date, and URL without creating duplicates.
 
-### Sources
-
-You can import from:
-- **Facebook posts** — use browser console to export posts (see `scraper.js` if available)
-- **Blog articles** — manually copy excerpts
-- **Tweets/social** — export and format as JSON
-- **Personal notes** — copy/paste as needed
+---
 
 ## AI Insights
 
-The AI Insights feature analyzes all your saved highlights together to identify patterns about your attachment style and relational patterns.
+Analyzes all your saved highlights together to identify patterns in your attachment style and relational tendencies.
 
 ### Setup
 
 1. Get an API key from [Anthropic](https://console.anthropic.com)
-2. Visit the 🧠 **AI Insights** tab
-3. Paste your API key (stored locally in the database, never sent elsewhere)
+2. Visit 🧠 **AI Insights**
+3. Paste your API key (stored locally, never sent elsewhere)
 4. Generate an analysis whenever you want
-
-### Customizing the Prompt
-
-The default prompt is a warm, therapist-inspired persona. You can customize it:
-- Click **Edit Prompt** to modify the system instructions
-- Your custom prompt is saved and used for future analyses
-- Reset to default at any time
 
 ### How It Works
 
-Each analysis:
-1. Collects all your highlighted passages
-2. Groups them with their attachment categories
-3. Includes your personal reflections on each highlight
-4. References your 5 most recent feedback notes for context
-5. Sends to Claude for personalized analysis
-6. Saves the full analysis + optionally your reflections for history
+Each analysis collects all highlighted passages, groups them with their categories, includes your personal reflections and current feelings, references recent feedback notes, and sends everything to Claude for a personalized response. Full history is saved and searchable.
+
+---
 
 ## Database
 
-The app uses SQLite (`posts.db`) with these tables:
+SQLite (`posts.db`) with these tables:
 
-- **posts** — imported content with categories, revisions, favorites, metrics
+- **posts** — imported content with categories, revisions, favorites, likes, comments, dates
 - **insights** — highlighted text + personal reflections
 - **ai_analyses** — generated analyses + feedback history
+- **modeled_posts** — AI-generated posts in Derek Hart's style
 - **settings** — API keys, custom prompts
 
-All data is stored locally. Back up `posts.db` regularly if this is important to you.
+All data is stored locally. Back up `posts.db` regularly.
+
+---
 
 ## Roadmap
 
 **High Priority**
-- [ ] Manual category override on post detail pages
-- [ ] Multi-category tagging (posts can span multiple styles)
-- [ ] Read/Unread status with reading queue
+- [ ] Multi-user support — per-user favorites, insights, AI analyses, modeled posts; user switcher in nav
+- [ ] Export to PDF — analyses and highlights formatted for therapy sessions
+- [ ] Browser extension scraper — replaces fragile console script
 
 **Medium Priority**
-- [ ] Export to PDF (analyses, highlights)
-- [ ] Stats dashboard (charts on attachment patterns, reading pace)
-- [ ] Backup & restore (JSON export/import of full database)
+- [ ] Date range filtering in the library
+- [ ] Category confidence score and boundary-case flagging
+- [ ] Attachment style trend chart over time
+- [ ] Duplicate detection on import
 
 **Longer Term**
-- [ ] Browser extension for native scraping
-- [ ] Bulk re-labeling view for cleanup
+- [ ] Semantic search by meaning
+- [ ] Therapist export pack (PDF)
+- [ ] Mobile-friendly layout
 
-## Deployment to GitHub Pages
+---
 
-While AttachmentLens is primarily a server-side Flask app, you can deploy a static read-only version to GitHub Pages for sharing insights, or set up continuous deployment with a serverless backend.
-
-### Option 1: Export & Static Hosting
-
-For a **read-only view** of your analyses:
-
-```bash
-# Export your database to JSON
-python -c "
-import sqlite3, json
-conn = sqlite3.connect('posts.db')
-conn.row_factory = sqlite3.Row
-posts = [dict(r) for r in conn.execute('SELECT * FROM posts ORDER BY id DESC').fetchall()]
-with open('docs/posts.json', 'w') as f:
-    json.dump(posts, f, indent=2)
-"
-
-# Commit and push
-git add docs/
-git commit -m "Export posts snapshot"
-git push
-```
-
-Then enable GitHub Pages in repo settings pointing to the `docs/` folder.
-
-### Option 2: Full App with Netlify Functions (Recommended)
-
-Deploy the full Flask app with Netlify Functions:
-
-1. **Install Netlify CLI**
-   ```bash
-   npm install -g netlify-cli
-   ```
-
-2. **Create `netlify.toml`** in the project root:
-   ```toml
-   [build]
-   command = "pip install -r requirements.txt"
-   functions = "functions"
-   
-   [functions]
-   directory = "functions"
-   
-   [[redirects]]
-   from = "/*"
-   to = "/.netlify/functions/api"
-   status = 200
-   ```
-
-3. **Convert app to serverless function** — Create `functions/api.py`:
-   ```python
-   from functions.app import app
-   
-   def handler(event, context):
-       return {
-           'statusCode': 200,
-           'body': 'AttachmentLens is running!'
-       }
-   ```
-
-4. **Deploy**
-   ```bash
-   netlify deploy --prod
-   ```
-
-### Option 3: Heroku Deployment (Alternative)
-
-1. **Add `Procfile`** to project root:
-   ```
-   web: python app.py
-   ```
-
-2. **Ensure `requirements.txt` is up-to-date**:
-   ```bash
-   pip freeze > requirements.txt
-   ```
-
-3. **Deploy to Heroku**:
-   ```bash
-   heroku create your-app-name
-   git push heroku main
-   ```
-
-Visit `https://your-app-name.herokuapp.com`
-
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
 AttachmentLens/
-├── app.py                 # Flask application & routes
+├── app.py                 # Flask application & all routes
 ├── requirements.txt       # Python dependencies
 ├── posts.db              # SQLite database (created on first run)
-├── templates/            # HTML templates
-│   ├── base.html         # Base layout with styling
-│   ├── index.html        # Home page
+├── templates/
+│   ├── base.html         # Base layout, nav, styles
+│   ├── index.html        # Home + All Posts library
 │   ├── post.html         # Post detail view
 │   ├── category.html     # Category filter view
-│   ├── insights.html     # User highlights view
+│   ├── insights.html     # User highlights
 │   ├── ai_insights.html  # AI analysis interface
-│   └── import.html       # Data import form
+│   ├── modeled_posts.html # AI post generator
+│   ├── stats.html        # Stats dashboard
+│   ├── bulk_label.html   # Admin: bulk re-label
+│   └── import.html       # Admin: import posts
 └── README.md
 ```
 
-### Adding Features
-
-1. **New route** — Add a route in `app.py` and corresponding template
-2. **Database changes** — Modify `init_db()` to add migrations
-3. **Styling** — Add CSS to `<style>` block in `templates/base.html`
-
-### Running Tests
-
-```bash
-# Run the development server with debug mode
-python app.py
-
-# Verify routes
-curl http://localhost:5000/
-curl http://localhost:5000/api/stats
-```
+---
 
 ## Security & Privacy
 
 ⚠️ **Important Notes:**
 
-- This app stores data **locally** in SQLite
-- API keys are stored in the database (plaintext) — keep your database secure
-- No built-in authentication — intended for single-user/personal use
-- Not suitable for multi-user or sensitive production environments without hardening:
-  - Add user authentication
-  - Encrypt stored API keys
-  - Add CSRF protection
-  - Rate limit API calls
-  - Add request validation & sanitization
+- Data stored **locally** in SQLite — no cloud, no telemetry
+- API keys stored in the database (plaintext) — keep your database file secure
+- No built-in authentication — currently single-user/personal use only
+- Multi-user support is on the roadmap; until then, not suitable for shared environments without adding authentication and per-user data isolation
 
 For therapy/medical contexts, consult your therapist before using any AI tools.
 
-## Contributing
-
-This is a personal project, but contributions are welcome:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-idea`)
-3. Commit changes with clear messages
-4. Push and open a Pull Request
-
-## License
-
-MIT License — feel free to use, modify, and share.
-
-## Support
-
-- **Issues** — Report bugs or request features on [GitHub Issues](https://github.com/yourusername/AttachmentLens/issues)
-- **Feedback** — DM or email if you have questions
-- **Therapy Note** — This tool is a personal research aid, not a substitute for professional mental health care
+---
 
 ## Acknowledgments
 
-- Inspired by attachment theory research (Bowlby, Ainsworth, Main, Amir Levine, Rachel Heller)
+- Inspired by attachment theory research (Bowlby, Ainsworth, Main, Levine & Heller)
 - Built with Flask and SQLite
-- UI powered by Claude and Anthropic's API
-- Community of people exploring relationships & personal growth
+- AI features powered by Anthropic's Claude API
 
 ---
 

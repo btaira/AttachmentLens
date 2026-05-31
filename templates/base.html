@@ -104,29 +104,68 @@
     font-size: 11px; font-weight: 700; background: rgba(138,143,168,.1);
     color: var(--muted);
   }
+
+  /* Admin dropdown */
+  .admin-menu { position: relative; }
+  .admin-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 6px; cursor: pointer;
+    padding: 5px 12px; font-size: 13px; font-weight: 600;
+    transition: border-color .15s, color .15s;
+    white-space: nowrap;
+  }
+  .admin-btn:hover { border-color: var(--accent); color: var(--text); }
+  .admin-dropdown {
+    display: none; position: absolute; right: 0; top: calc(100% + 6px);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: var(--shadow);
+    min-width: 170px; z-index: 300; overflow: hidden;
+  }
+  .admin-dropdown.open { display: block; }
+  .admin-item {
+    display: block; padding: 10px 16px;
+    font-size: 13px; color: var(--muted);
+    transition: background .12s, color .12s;
+  }
+  .admin-item:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
 </style>
 </head>
 <body>
 <nav>
   <span class="brand">Attachment<span>Lens</span></span>
-  <a href="/" class="nav-link">Home</a>
+  <a href="/" class="nav-link">🏠 Home</a>
   <a href="/#favorites" class="nav-link">⭐ Favorites</a>
   <a href="/insights" class="nav-link">✨ Insights</a>
   <a href="/ai-insights" class="nav-link">🧠 AI Insights</a>
   <a href="/modeled-posts" class="nav-link">🎭 Modeled Posts</a>
   <a href="/stats" class="nav-link">📊 Stats</a>
-  <a href="/bulk-label" class="nav-link">🏷 Bulk Label</a>
-  <a href="/import" class="nav-link">Import Posts</a>
   <span class="spacer"></span>
   <div class="font-ctrl">
-    <span class="font-label">TEXT</span>
+    <span class="font-label">🔤 Text</span>
     <button class="font-btn" onclick="adjustFont(-1)" title="Decrease font size">A−</button>
     <span class="font-size-display" id="font-size-display">15</span>
     <button class="font-btn" onclick="adjustFont(1)" title="Increase font size">A+</button>
   </div>
+  <!-- Admin dropdown -->
+  <div class="admin-menu" id="admin-menu">
+    <button class="admin-btn" onclick="toggleAdminMenu(event)">⚙️ Admin ▾</button>
+    <div class="admin-dropdown" id="admin-dropdown">
+      <a href="/import" class="admin-item">📥 Import Posts</a>
+      <a href="/bulk-label" class="admin-item">🏷️ Bulk Label</a>
+    </div>
+  </div>
 </nav>
 <div id="page-content">{% block content %}{% endblock %}</div>
 <script>
+function toggleAdminMenu(e) {
+  e.stopPropagation();
+  document.getElementById('admin-dropdown').classList.toggle('open');
+}
+document.addEventListener('click', () => {
+  const d = document.getElementById('admin-dropdown');
+  if (d) d.classList.remove('open');
+});
+
 (function() {
   // Zoom levels: 80% → 200% in steps
   const ZOOMS = [0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.35, 1.5, 1.75, 2.0];

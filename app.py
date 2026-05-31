@@ -287,16 +287,21 @@ def import_json():
                 'SELECT id, likes, comments FROM posts WHERE original_text = ?', (text,)
             ).fetchone()
             if existing:
-                # Update likes/comments if new data has values and they differ
-                if likes > 0 or comments > 0:
-                    if likes != existing['likes'] or comments != existing['comments']:
-                        conn.execute(
-                            'UPDATE posts SET likes = ?, comments = ?, popularity = ? WHERE id = ?',
-                            (likes, comments, popularity, existing['id'])
-                        )
-                        updated += 1
-                    else:
-                        skipped += 1
+                # Always update date_label and post_url if we have them now (may have been missing on first import)
+                date_label = item.get('date', '')
+                post_url = item.get('url', '')
+                if likes > 0 or comments > 0 or date_label or post_url:
+                    conn.execute(
+                        '''UPDATE posts SET likes = ?, comments = ?, popularity = ?,
+                           date_label = CASE WHEN ? != '' THEN ? ELSE date_label END,
+                           post_url   = CASE WHEN ? != '' THEN ? ELSE post_url   END
+                           WHERE id = ?''',
+                        (likes, comments, popularity,
+                         date_label, date_label,
+                         post_url, post_url,
+                         existing['id'])
+                    )
+                    updated += 1
                 else:
                     skipped += 1
                 continue
@@ -691,13 +696,14 @@ def stats_page():
         analysis_count = conn.execute('SELECT COUNT(*) as n FROM ai_analyses').fetchone()['n']
         modeled_count = conn.execute('SELECT COUNT(*) as n FROM modeled_posts').fetchone()['n']
         # Posts imported over time (by imported_at date)
-        timeline = conn.execute(
+        timeline = [dict(r) for r in conn.execute(
             "SELECT substr(imported_at, 1, 10) as day, COUNT(*) as cnt FROM posts GROUP BY day ORDER BY day"
-        ).fetchall()
+        ).fetchall()]
         # Top posts by popularity
         top_posts = conn.execute(
             'SELECT id, original_text, category, popularity, likes, comments FROM posts ORDER BY popularity DESC LIMIT 10'
         ).fetchall()
+        cats = [dict(r) for r in cats]
     return render_template('stats.html',
         cats=cats, total=total, read_count=read_count,
         revised_count=revised_count, fav_count=fav_count,
