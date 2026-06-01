@@ -244,14 +244,18 @@ def init_db():
             conn.execute('UPDATE ai_analyses SET user_id = 1 WHERE user_id IS NULL')
             conn.execute('UPDATE modeled_posts SET user_id = 1 WHERE user_id IS NULL')
             # Migrate is_favorite, is_read, tags from posts → user_post_prefs
-            legacy = conn.execute(
-                'SELECT id, is_favorite, is_read, tags FROM posts WHERE (is_favorite=1 OR is_read=1 OR (tags IS NOT NULL AND tags != ""))'
-            ).fetchall()
-            for row in legacy:
-                conn.execute('''
-                    INSERT OR IGNORE INTO user_post_prefs (user_id, post_id, is_favorite, is_read, tags)
-                    VALUES (1, ?, ?, ?, ?)
-                ''', (row['id'], row['is_favorite'] or 0, row['is_read'] or 0, row['tags'] or ''))
+            # (only applies to pre-multi-user databases; fresh installs won't have these columns)
+            try:
+                legacy = conn.execute(
+                    'SELECT id, is_favorite, is_read, tags FROM posts WHERE (is_favorite=1 OR is_read=1 OR (tags IS NOT NULL AND tags != ""))'
+                ).fetchall()
+                for row in legacy:
+                    conn.execute('''
+                        INSERT OR IGNORE INTO user_post_prefs (user_id, post_id, is_favorite, is_read, tags)
+                        VALUES (1, ?, ?, ?, ?)
+                    ''', (row['id'], row['is_favorite'] or 0, row['is_read'] or 0, row['tags'] or ''))
+            except Exception:
+                pass  # Fresh install — legacy columns don't exist, nothing to migrate
 
         conn.commit()
 
