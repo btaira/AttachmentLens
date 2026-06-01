@@ -4,6 +4,8 @@
 
 
 
+
+- [ ] **[Requested by Brent, 2026-06-01]** There is a bug with the colors - just an example
 - [ ] **[Requested by Brent, 2026-06-01]** Bug - after saving to insights, the text should change to golden yellow - not working
 - [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
 - [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
