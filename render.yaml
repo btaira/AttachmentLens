@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: attachmentlens
+    runtime: docker
+    plan: free
+    healthCheckPath: /login
+    envVars:
+      - key: FLASK_ENV
+        value: production
+    disk:
+      name: data
+      mountPath: /app/data
+      sizeGB: 1
