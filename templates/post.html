@@ -61,6 +61,33 @@
   .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
   .section-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 10px; }
 
+  /* Saved highlight marks */
+  .saved-highlight {
+    color: #c8a200;
+    background: none;
+    border-bottom: none;
+    border-radius: 0;
+    padding: 0;
+    cursor: default;
+    position: relative;
+    text-shadow: 0 0 8px rgba(200,162,0,.45);
+  }
+  .saved-highlight:hover::after {
+    content: '✨ Saved insight';
+    position: absolute;
+    background: var(--surface2);
+    border: 1px solid #c8a200;
+    color: #c8a200;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    top: -26px;
+    left: 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+
   /* Floating insight button */
   #insight-float-btn {
     display: none;
@@ -525,6 +552,82 @@ async function saveDate() {
 
 // Init tags on load
 renderTags();
+
+// ── Restore saved highlights ───────────────────────────────
+const SAVED_HIGHLIGHTS = {{ highlights | tojson }};
+
+function applyHighlights(containerEl) {
+  if (!containerEl || !SAVED_HIGHLIGHTS.length) return;
+  // Sort longest first so overlapping highlights don't break each other
+  const phrases = [...SAVED_HIGHLIGHTS].sort((a, b) => b.length - a.length);
+  let html = containerEl.innerHTML;
+  // We work on the raw text content via TreeWalker to avoid breaking HTML tags
+  highlightTextNodes(containerEl, phrases);
+}
+
+function highlightTextNodes(root, phrases) {
+  // Collect all text nodes within root
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) textNodes.push(node);
+
+  for (const phrase of phrases) {
+    if (!phrase || phrase.length < 3) continue;
+    const lower = phrase.toLowerCase();
+    for (const tn of textNodes) {
+      const idx = tn.nodeValue.toLowerCase().indexOf(lower);
+      if (idx === -1) continue;
+      // Split the text node around the match and wrap in <mark>
+      const before = tn.nodeValue.slice(0, idx);
+      const match  = tn.nodeValue.slice(idx, idx + phrase.length);
+      const after  = tn.nodeValue.slice(idx + phrase.length);
+      const span = document.createElement('mark');
+      span.className = 'saved-highlight';
+      span.title = 'Saved insight';
+      span.textContent = match;
+      const parent = tn.parentNode;
+      const afterNode = document.createTextNode(after);
+      parent.insertBefore(document.createTextNode(before), tn);
+      parent.insertBefore(span, tn);
+      parent.insertBefore(afterNode, tn);
+      parent.removeChild(tn);
+      // Update textNodes array: replace tn with afterNode for further matches in same text
+      const i = textNodes.indexOf(tn);
+      textNodes.splice(i, 1, afterNode);
+      break; // one match per phrase per pass is enough
+    }
+  }
+}
+
+// Apply to whichever display div is visible, and re-apply on version switch
+function applyHighlightsToVisible() {
+  ['display-original', 'display-personalized'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.style.display !== 'none' && !el.dataset.highlighted) {
+      applyHighlights(el);
+      el.dataset.highlighted = '1';
+    }
+  });
+}
+
+// Patch showVersion to re-apply after switching
+const _origShowVersion = typeof showVersion === 'function' ? showVersion : null;
+if (_origShowVersion) {
+  window.showVersion = function(v) {
+    _origShowVersion(v);
+    applyHighlightsToVisible();
+  };
+}
+
+// Also re-apply after a new insight is saved without reloading
+const _origSaveInsight = saveInsight;
+window.saveInsight = async function() {
+  await _origSaveInsight();
+  SAVED_HIGHLIGHTS.push(lastSelectedText);
+};
+
+applyHighlightsToVisible();
 
 async function toggleFav(id, btn) {
   const resp = await fetch('/post/' + id + '/favorite', { method: 'POST' });

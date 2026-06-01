@@ -605,9 +605,14 @@ def view_post(post_id):
             LEFT JOIN user_post_prefs up ON up.post_id = p.id AND up.user_id = ?
             WHERE p.id = ?
         ''', (uid, post_id)).fetchone()
+        saved_highlights = conn.execute(
+            'SELECT highlighted_text FROM insights WHERE post_id = ? AND user_id = ? ORDER BY id',
+            (post_id, uid)
+        ).fetchall()
     if not post:
         return "Post not found", 404
-    return render_template('post.html', post=post)
+    highlights = [r['highlighted_text'] for r in saved_highlights]
+    return render_template('post.html', post=post, highlights=highlights)
 
 
 @app.route('/post/<int:post_id>/edit', methods=['POST'])
