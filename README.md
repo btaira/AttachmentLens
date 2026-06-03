@@ -39,7 +39,9 @@ This is a personal journaling and research tool inspired by attachment theory fr
 
 📝 **Annotation & Insights**
 - Highlight text from any post and save with personal reflections
-- Floating "Save to Insights" button appears on text selection
+- Floating "Save to Insights" button appears on text selection (one line below, to the left)
+- Text highlights in golden yellow (#c8a200) on the post view after saving
+- Page automatically reloads after saving to display the golden highlight immediately
 - Searchable insights library
 - Track which posts have been read (read/unread toggle + filter)
 
@@ -57,11 +59,12 @@ This is a personal journaling and research tool inspired by attachment theory fr
 - Favorite posts for quick access from the home page
 - Home page "Latest Posts" shows the 5 most recently dated posts
 - Like/comment metrics captured from Facebook; sort by popularity, likes, or comments
-- Post dates captured from Facebook; falls back to today's date for very recent posts where Facebook no longer exposes date metadata
+- Post dates captured from Facebook; undated posts left blank for manual entry rather than guessing
+- Imported dates are automatically locked to prevent re-imports from overwriting them
+- Manually set or correct any post's date from the post detail page (manual dates are also locked)
 - Sort library by newest, oldest, popularity, likes, or comments; undated posts treated as recent
 - Full-text search across your library
 - Edit and personalize post content with word-diff view
-- Manually set or correct any post's date from the post detail page
 
 📊 **Stats Dashboard**
 - Charts: category breakdown, read vs. unread, import timeline, top posts by popularity
@@ -80,7 +83,12 @@ This is a personal journaling and research tool inspired by attachment theory fr
 
 🎨 **User Experience**
 - Dark theme optimized for comfort and focus
-- Adjustable font sizes (80%–200%) via 🔤 Text control in nav
+- Customizable appearance via 🎨 Customize button in nav:
+  - 6 background themes: Dark, Ocean, Forest, Sunset, Twilight, Slate
+  - 3 font families: Sans-Serif, Serif, Monospace
+  - 3 font sizes: Normal (15px), Large (17px), X-Large (19px)
+  - Preferences saved locally and synced to server
+- Adjustable zoom levels (80%–200%) via 🔤 Text control in nav
 - Sticky navigation bar with admin dropdown on the right
 - Responsive design for desktop and tablet
 
@@ -199,7 +207,6 @@ All data is stored locally. Back up via ⚙️ Admin → 💾 Backup & Restore r
 ## Roadmap
 
 **High Priority**
-- [ ] User customization — 6 different background themes, choice of fonts and sizes
 - [ ] Export to PDF — analyses and highlights formatted for therapy sessions
 - [ ] Browser extension scraper — replaces fragile console script; Facebook changed its DOM in May 2026 and no longer exposes date metadata for recent posts
 
@@ -213,6 +220,11 @@ All data is stored locally. Back up via ⚙️ Admin → 💾 Backup & Restore r
 - [ ] Semantic search by meaning
 - [ ] Therapist export pack (PDF)
 - [ ] Mobile-friendly layout
+
+**Recently Completed** ✅
+- [x] **Static Date** (June 2026) — Imported dates are auto-locked and won't be overwritten by future imports; user manual edits also lock dates
+- [x] **Golden Yellow Insight Highlighting** (June 2026) — Saved insights display immediately in golden yellow; page reloads after save
+- [x] **User Customization** (June 2026) — 6 background themes, 3 font families, 3 font sizes; all preferences persist across sessions
 
 ---
 

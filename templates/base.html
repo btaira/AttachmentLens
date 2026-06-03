@@ -436,22 +436,43 @@ let custSelectedTheme = localStorage.getItem('custTheme') || 'default';
 let custSelectedFont = localStorage.getItem('custFont') || 'font-sans';
 let custSelectedFontSize = localStorage.getItem('custFontSize') || 'normal';
 
-function applyCustomization() {
-  // Remove all theme/font/size classes first
-  document.body.classList.remove('theme-ocean', 'theme-forest', 'theme-sunset', 'theme-twilight', 'theme-slate');
-  document.body.classList.remove('font-sans', 'font-serif', 'font-mono');
-  document.body.classList.remove('font-large', 'font-xlarge');
+const themeColors = {
+  'default': { bg: '#0f1117', surface: '#1a1d27', surface2: '#242736', text: '#e8eaf6' },
+  'theme-ocean': { bg: '#0a1428', surface: '#1a2332', surface2: '#2a3a52', text: '#e0e8f0' },
+  'theme-forest': { bg: '#0f1514', surface: '#1a2820', surface2: '#253a2e', text: '#e0f0e8' },
+  'theme-sunset': { bg: '#2a1810', surface: '#3a2820', surface2: '#4a3830', text: '#f0e8e0' },
+  'theme-twilight': { bg: '#1a0a2e', surface: '#2a1a3e', surface2: '#3a2a4e', text: '#f0e8f8' },
+  'theme-slate': { bg: '#1a1f28', surface: '#252d38', surface2: '#303d50', text: '#e8ecf2' }
+};
 
-  // Apply selected options
-  if (custSelectedTheme && custSelectedTheme !== 'default') {
-    document.body.classList.add(custSelectedTheme);
-  }
-  if (custSelectedFont) {
-    document.body.classList.add(custSelectedFont);
-  }
-  if (custSelectedFontSize && custSelectedFontSize !== 'normal') {
-    document.body.classList.add(custSelectedFontSize);
-  }
+const fontFamilies = {
+  'font-sans': "'Segoe UI', system-ui, sans-serif",
+  'font-serif': "Georgia, serif",
+  'font-mono': "'Monaco', 'Courier New', monospace"
+};
+
+const fontSizes = {
+  'normal': '15px',
+  'font-large': '17px',
+  'font-xlarge': '19px'
+};
+
+function applyCustomization() {
+  // Apply theme colors via CSS variables
+  const theme = themeColors[custSelectedTheme] || themeColors['default'];
+  document.documentElement.style.setProperty('--bg', theme.bg);
+  document.documentElement.style.setProperty('--surface', theme.surface);
+  document.documentElement.style.setProperty('--surface2', theme.surface2);
+  document.documentElement.style.setProperty('--text', theme.text);
+
+  // Apply font family via CSS variable
+  const font = fontFamilies[custSelectedFont] || fontFamilies['font-sans'];
+  document.documentElement.style.setProperty('--font-family', font);
+
+  // Apply font size via CSS variable
+  const size = fontSizes[custSelectedFontSize] || fontSizes['normal'];
+  document.documentElement.style.setProperty('--base-font-size', size);
+
   updateCustomizationUI();
 }
 
@@ -514,7 +535,7 @@ async function saveCustomization() {
 }
 
 // Load customization on page load
-applyCustomization();
+setTimeout(() => applyCustomization(), 100);
 </script>
 </body>
 </html>
