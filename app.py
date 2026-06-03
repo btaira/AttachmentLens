@@ -15,6 +15,15 @@ except ImportError:
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
+
+# Fix UTF-8 template loading on Windows
+from jinja2 import FileSystemLoader
+app.jinja_loader = FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates'), encoding='utf-8')
+
+app.jinja_env.auto_reload = True
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.cache = None
+
 DB = os.getenv('DB_PATH', 'posts.db')
 
 
