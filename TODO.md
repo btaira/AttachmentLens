@@ -2,8 +2,10 @@
 
 ## High Priority
 
-- [ ] **Static Date Field** -  After downloading post, the date field should be permanent and should not be overwritten with future downloads. 
+- [ ] **Static Date** After the date for a post has been saved, it should remain permanent.
+- [ ] **[Requested by Brent, 2026-06-01]** Bug - after saving to insights, the text should change to golden yellow - not working
 - [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
+- [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
 - [ ] **Duplicate detection** — flag near-duplicate posts (same text, slightly different formatting) before import; keep newest
 - [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
 - [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
