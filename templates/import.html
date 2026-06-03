@@ -429,10 +429,9 @@
 
       if (!dateLabel) {
         // Facebook no longer exposes date metadata in the DOM for recent posts.
-        // Fall back to today's date — recent posts at the top of the feed are
-        // always from the last 1–2 days. The user can correct via manual date edit.
-        dateLabel = fmtDate(new Date());
-        console.warn('⚠️ date not found — using today as fallback for post:', text.substring(0, 40));
+        // Leave date blank instead of guessing — the user can set it manually via the date editor.
+        // This prevents all undated posts from being incorrectly marked as "today".
+        console.warn('⚠️ date not found for post:', text.substring(0, 40));
       }
 
       // ── Likes & comments extraction ──────────────────────────────

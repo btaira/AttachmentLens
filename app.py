@@ -525,7 +525,7 @@ def import_json():
             ).fetchone()
             if existing:
                 # Always update date_label and post_url if we have them now (may have been missing on first import)
-                # But respect user-locked dates (don't overwrite)
+                # But respect locked dates (don't overwrite if already locked by any prior import or user)
                 date_label = item.get('date', '')
                 post_url = item.get('url', '')
                 if likes > 0 or comments > 0 or date_label or post_url:
@@ -534,10 +534,14 @@ def import_json():
                            date_label = CASE WHEN date_label_locked = 1 THEN date_label
                                             WHEN ? != '' THEN ?
                                             ELSE date_label END,
+                           date_label_locked = CASE WHEN date_label_locked = 1 THEN 1
+                                                    WHEN ? != '' THEN 1
+                                                    ELSE date_label_locked END,
                            post_url   = CASE WHEN ? != '' THEN ? ELSE post_url   END
                            WHERE id = ?''',
                         (likes, comments, popularity,
                          date_label, date_label,
+                         date_label,
                          post_url, post_url,
                          existing['id'])
                     )
@@ -546,9 +550,11 @@ def import_json():
                     skipped += 1
                 continue
             category = classify(text)
+            date_label = item.get('date', '')
+            # Auto-lock all imported dates (only manual edits will have locked=1 if date is empty, otherwise all imports are locked)
             conn.execute(
-                'INSERT INTO posts (original_text, date_label, post_url, category, popularity, likes, comments) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                (text, item.get('date', ''), item.get('url', ''), category, popularity, likes, comments)
+                'INSERT INTO posts (original_text, date_label, post_url, category, popularity, likes, comments, date_label_locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                (text, date_label, item.get('url', ''), category, popularity, likes, comments, 1 if date_label else 0)
             )
             imported += 1
         conn.commit()
