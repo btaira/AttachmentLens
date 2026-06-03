@@ -487,14 +487,17 @@ function updateCustomizationUI() {
 
 function selectTheme(theme) {
   custSelectedTheme = theme;
+  updateCustomizationUI();
 }
 
 function selectFont(font) {
   custSelectedFont = font;
+  updateCustomizationUI();
 }
 
 function selectFontSize(size) {
   custSelectedFontSize = size;
+  updateCustomizationUI();
 }
 
 function openCustomization() {
