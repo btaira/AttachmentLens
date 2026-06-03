@@ -2,9 +2,10 @@
 
 ## High Priority
 
-
-- [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
+- [ ] **Static Date Field** -  After downloading post, the date field should be permanent and should not be overwritten with future downloads. 
 - [ ] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts.
+- [ ] **Duplicate detection** — flag near-duplicate posts (same text, slightly different formatting) before import; keep newest
+- [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
 - [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
 - [ ] **Browser extension scraper** — replace the fragile console script with an extension that captures posts as you naturally browse; Facebook changed its DOM in May 2026 and timestamp links no longer expose date metadata — a browser extension can intercept network requests to get reliable post dates
 
@@ -14,7 +15,6 @@
 - [ ] **Comment count accuracy** — for high-engagement posts Facebook shows "View all X comments" but collapses the count; investigate fetching the full comment count via the post URL
 - [ ] **Category confidence score** — show how certain the keyword classifier is; flag posts near the boundary between two styles for manual review
 - [ ] **Attachment style trend chart** — line chart on the Stats page showing which styles Derek posts about most over time, week by week
-- [ ] **Duplicate detection** — flag near-duplicate posts (same text, slightly different formatting) before import; show a diff and let user decide which to keep
 
 ## Longer Term
 

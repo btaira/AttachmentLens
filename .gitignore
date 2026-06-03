@@ -53,6 +53,10 @@ tmp/
 temp/
 *.tmp
 
+# Secret scanning
+.secrets.baseline
+.secrets.new
+
 # Node (if using Netlify)
 node_modules/
 .netlify/

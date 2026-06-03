@@ -146,8 +146,8 @@
 
   // ── CONFIG ──────────────────────────────────────
   const TARGET = 20;  // posts to collect
-  const SCROLL_WAIT = 5000;  // ms to wait after each scroll (increase if slow connection)
-  const MAX_STALE = 12;      // stale rounds before giving up (more = more patient)
+  const SCROLL_WAIT = 7000;  // ms to wait after each scroll (increase if slow connection)
+  const MAX_STALE = 25;      // stale rounds before giving up (more = more patient)
   // ────────────────────────────────────────────────
 
   let collected = [], seen = new Set(), staleRounds = 0;
@@ -694,8 +694,14 @@
 <script>
 function updateTarget(val) {
   const n = parseInt(val) || 20;
+  // Scale MAX_STALE with target: larger scrapes need more patience
+  // 1–100 posts → 15, 101–300 → 20, 301+ → 30
+  const stale = n <= 100 ? 15 : n <= 300 ? 20 : 30;
   const pre = document.getElementById('scraper-script');
-  pre.innerText = pre.innerText.replace(/const TARGET = \d+;/, 'const TARGET = ' + n + ';');
+  let s = pre.innerText;
+  s = s.replace(/const TARGET = \d+;/, 'const TARGET = ' + n + ';');
+  s = s.replace(/const MAX_STALE = \d+;/, 'const MAX_STALE = ' + stale + ';');
+  pre.innerText = s;
 }
 
 async function copyScript() {
