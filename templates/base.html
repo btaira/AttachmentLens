@@ -308,17 +308,21 @@
       <div class="cust-section-label">Font Family</div>
       <div class="cust-options" style="grid-template-columns: 1fr 1fr 1fr;">
         <div class="cust-option" onclick="selectFont('font-sans')" data-font="font-sans">Sans-Serif</div>
-        <div class="cust-option" onclick="selectFont('font-serif')" data-font="font-serif">Serif</div>
-        <div class="cust-option" onclick="selectFont('font-mono')" data-font="font-mono">Mono</div>
+        <div class="cust-option" onclick="selectFont('font-garamond')" data-font="font-garamond">Garamond</div>
+        <div class="cust-option" onclick="selectFont('font-arvo')" data-font="font-arvo">Arvo</div>
       </div>
     </div>
 
     <div class="cust-section">
       <div class="cust-section-label">Font Size</div>
-      <div class="cust-options" style="grid-template-columns: 1fr 1fr;">
-        <div class="cust-option" onclick="selectFontSize('normal')" data-fontsize="normal">Normal (15px)</div>
-        <div class="cust-option" onclick="selectFontSize('font-large')" data-fontsize="font-large">Large (17px)</div>
-        <div class="cust-option" onclick="selectFontSize('font-xlarge')" data-fontsize="font-xlarge">X-Large (19px)</div>
+      <div class="cust-options" style="grid-template-columns: repeat(4, 1fr); gap: 8px;">
+        <div class="cust-option" onclick="selectFontSize('font-12')" data-fontsize="font-12">Small (12px)</div>
+        <div class="cust-option" onclick="selectFontSize('font-14')" data-fontsize="font-14">14px</div>
+        <div class="cust-option" onclick="selectFontSize('font-16')" data-fontsize="font-16">16px</div>
+        <div class="cust-option" onclick="selectFontSize('font-18')" data-fontsize="font-18">18px</div>
+        <div class="cust-option" onclick="selectFontSize('font-20')" data-fontsize="font-20">20px</div>
+        <div class="cust-option" onclick="selectFontSize('font-22')" data-fontsize="font-22">22px</div>
+        <div class="cust-option" onclick="selectFontSize('font-24')" data-fontsize="font-24">Large (24px)</div>
       </div>
     </div>
 
@@ -434,7 +438,7 @@ document.addEventListener('click', () => {
 // Customization modal functionality
 let custSelectedTheme = localStorage.getItem('custTheme') || 'default';
 let custSelectedFont = localStorage.getItem('custFont') || 'font-sans';
-let custSelectedFontSize = localStorage.getItem('custFontSize') || 'normal';
+let custSelectedFontSize = localStorage.getItem('custFontSize') || 'font-16';
 
 const themeColors = {
   'default': { bg: '#0f1117', surface: '#1a1d27', surface2: '#242736', text: '#e8eaf6' },
@@ -447,14 +451,18 @@ const themeColors = {
 
 const fontFamilies = {
   'font-sans': "'Segoe UI', system-ui, sans-serif",
-  'font-serif': "Georgia, serif",
-  'font-mono': "'Monaco', 'Courier New', monospace"
+  'font-garamond': "'Garamond', Georgia, serif",
+  'font-arvo': "'Arvo', serif"
 };
 
 const fontSizes = {
-  'normal': '15px',
-  'font-large': '17px',
-  'font-xlarge': '19px'
+  'font-12': '12px',
+  'font-14': '14px',
+  'font-16': '16px',
+  'font-18': '18px',
+  'font-20': '20px',
+  'font-22': '22px',
+  'font-24': '24px'
 };
 
 function applyCustomization() {
@@ -468,10 +476,12 @@ function applyCustomization() {
   // Apply font family via CSS variable
   const font = fontFamilies[custSelectedFont] || fontFamilies['font-sans'];
   document.documentElement.style.setProperty('--font-family', font);
+  document.body.style.fontFamily = font; // Also apply directly to body
 
-  // Apply font size via CSS variable
-  const size = fontSizes[custSelectedFontSize] || fontSizes['normal'];
+  // Apply font size via CSS variable and directly to body for better coverage
+  const size = fontSizes[custSelectedFontSize] || fontSizes['font-16'];
   document.documentElement.style.setProperty('--base-font-size', size);
+  document.body.style.fontSize = size; // Also apply directly to body
 
   updateCustomizationUI();
 }
