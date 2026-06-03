@@ -625,6 +625,7 @@ const _origSaveInsight = saveInsight;
 window.saveInsight = async function() {
   await _origSaveInsight();
   SAVED_HIGHLIGHTS.push(lastSelectedText);
+  applyHighlightsToVisible();
 };
 
 applyHighlightsToVisible();

@@ -140,6 +140,7 @@ def init_db():
             ('comments', 'INTEGER DEFAULT 0'),
             ('date_label', 'TEXT'),
             ('post_url', 'TEXT'),
+            ('date_label_locked', 'INTEGER DEFAULT 0'),
         ]:
             try:
                 conn.execute(f'ALTER TABLE posts ADD COLUMN {col} {defn}')
@@ -524,12 +525,15 @@ def import_json():
             ).fetchone()
             if existing:
                 # Always update date_label and post_url if we have them now (may have been missing on first import)
+                # But respect user-locked dates (don't overwrite)
                 date_label = item.get('date', '')
                 post_url = item.get('url', '')
                 if likes > 0 or comments > 0 or date_label or post_url:
                     conn.execute(
                         '''UPDATE posts SET likes = ?, comments = ?, popularity = ?,
-                           date_label = CASE WHEN ? != '' THEN ? ELSE date_label END,
+                           date_label = CASE WHEN date_label_locked = 1 THEN date_label
+                                            WHEN ? != '' THEN ?
+                                            ELSE date_label END,
                            post_url   = CASE WHEN ? != '' THEN ? ELSE post_url   END
                            WHERE id = ?''',
                         (likes, comments, popularity,
@@ -984,7 +988,9 @@ def update_date(post_id):
     data = request.get_json(force=True) or {}
     date_label = (data.get('date_label') or '').strip()
     with get_db() as conn:
-        conn.execute('UPDATE posts SET date_label = ? WHERE id = ?', (date_label or None, post_id))
+        # Mark date as locked when user manually sets it
+        conn.execute('UPDATE posts SET date_label = ?, date_label_locked = ? WHERE id = ?',
+                     (date_label or None, 1 if date_label else 0, post_id))
         conn.commit()
     return jsonify({'ok': True, 'date_label': date_label})
 
@@ -1396,6 +1402,23 @@ def feature_request():
         return jsonify({'error': f'GitHub {e.code}: {msg}'}), 500
     except Exception as e:
         return jsonify({'error': f'{type(e).__name__}: {e}'}), 500
+
+
+@app.route('/settings/customization', methods=['POST'])
+@login_required
+def save_customization():
+    uid = current_user_id()
+    data = request.get_json(force=True) or {}
+    theme = (data.get('theme') or '').strip()
+    font = (data.get('font') or '').strip()
+    fontSize = (data.get('fontSize') or '').strip()
+
+    with get_db() as conn:
+        for key, val in [('theme', theme), ('font', font), ('fontSize', fontSize)]:
+            conn.execute('INSERT OR REPLACE INTO settings (user_id, key, value) VALUES (?, ?, ?)',
+                        (uid, f'customization_{key}', val))
+        conn.commit()
+    return jsonify({'ok': True})
 
 
 if __name__ == '__main__':

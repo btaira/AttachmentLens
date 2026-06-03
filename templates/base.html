@@ -23,9 +23,21 @@
     --revised-badge: #f7a26a;
     --radius: 10px;
     --shadow: 0 2px 12px rgba(0,0,0,0.4);
+    --font-family: 'Segoe UI', system-ui, sans-serif;
+    --base-font-size: 15px;
   }
+  body.theme-ocean { --bg: #0a1428; --surface: #1a2332; --surface2: #2a3a52; --text: #e0e8f0; }
+  body.theme-forest { --bg: #0f1514; --surface: #1a2820; --surface2: #253a2e; --text: #e0f0e8; }
+  body.theme-sunset { --bg: #2a1810; --surface: #3a2820; --surface2: #4a3830; --text: #f0e8e0; }
+  body.theme-twilight { --bg: #1a0a2e; --surface: #2a1a3e; --surface2: #3a2a4e; --text: #f0e8f8; }
+  body.theme-slate { --bg: #1a1f28; --surface: #252d38; --surface2: #303d50; --text: #e8ecf2; }
+  body.font-sans { --font-family: 'Segoe UI', system-ui, sans-serif; }
+  body.font-serif { --font-family: Georgia, serif; }
+  body.font-mono { --font-family: 'Monaco', 'Courier New', monospace; }
+  body.font-large { --base-font-size: 17px; }
+  body.font-xlarge { --base-font-size: 19px; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.6; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-family); font-size: var(--base-font-size); line-height: 1.6; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
@@ -187,6 +199,26 @@
   .admin-dropdown.open { display: block; }
   .admin-item { display: block; padding: 10px 16px; font-size: 13px; color: var(--muted); transition: background .12s, color .12s; }
   .admin-item:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
+  /* Customization modal */
+  .cust-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 1000; align-items: center; justify-content: center; }
+  .cust-overlay.open { display: flex; }
+  .cust-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+  .cust-modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .cust-section { margin-bottom: 24px; }
+  .cust-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; }
+  .cust-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cust-option { padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface2); cursor: pointer; text-align: center; font-size: 13px; transition: all .15s; }
+  .cust-option:hover { border-color: var(--accent); }
+  .cust-option.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cust-option-color { border-radius: 50%; height: 32px; width: 32px; margin: 0 auto 6px; border: 2px solid transparent; }
+  .cust-option.active .cust-option-color { border-color: #fff; }
+  .cust-modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  .cust-cancel { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; cursor: pointer; padding: 8px 16px; font-size: 13px; font-weight: 600; }
+  .cust-cancel:hover { color: var(--text); }
+  .cust-save { background: var(--accent); border: none; color: #fff; border-radius: 6px; cursor: pointer; padding: 8px 18px; font-size: 13px; font-weight: 700; }
+  .cust-save:hover { opacity: .85; }
+  .cust-nav-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; cursor: pointer; padding: 5px 12px; font-size: 13px; font-weight: 600; transition: border-color .15s, color .15s; white-space: nowrap; }
+  .cust-nav-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 </style>
 </head>
 <body>
@@ -208,6 +240,8 @@
     <span class="font-size-display" id="font-size-display">15</span>
     <button class="font-btn" onclick="adjustFont(1)" title="Increase font size">A+</button>
   </div>
+  <!-- Customization button -->
+  <button class="cust-nav-btn" onclick="openCustomization()" title="Customize theme, fonts, and colors">🎨 Customize</button>
   <!-- Feature request button -->
   <button class="fr-nav-btn" onclick="openFeatureRequest()">💡 Request</button>
   <!-- Admin dropdown -->
@@ -240,6 +274,60 @@
   {% endif %}
 </nav>
 <div id="page-content">{% block content %}{% endblock %}</div>
+
+<!-- Customization modal -->
+<div class="cust-overlay" id="cust-overlay" onclick="closeCustomizationOnOverlay(event)">
+  <div class="cust-modal">
+    <h3>🎨 Customize Appearance</h3>
+
+    <div class="cust-section">
+      <div class="cust-section-label">Background Theme</div>
+      <div class="cust-options">
+        <div class="cust-option" onclick="selectTheme('default')" data-theme="default">
+          <div class="cust-option-color" style="background:#0f1117"></div>Dark
+        </div>
+        <div class="cust-option" onclick="selectTheme('theme-ocean')" data-theme="theme-ocean">
+          <div class="cust-option-color" style="background:#0a1428"></div>Ocean
+        </div>
+        <div class="cust-option" onclick="selectTheme('theme-forest')" data-theme="theme-forest">
+          <div class="cust-option-color" style="background:#0f1514"></div>Forest
+        </div>
+        <div class="cust-option" onclick="selectTheme('theme-sunset')" data-theme="theme-sunset">
+          <div class="cust-option-color" style="background:#2a1810"></div>Sunset
+        </div>
+        <div class="cust-option" onclick="selectTheme('theme-twilight')" data-theme="theme-twilight">
+          <div class="cust-option-color" style="background:#1a0a2e"></div>Twilight
+        </div>
+        <div class="cust-option" onclick="selectTheme('theme-slate')" data-theme="theme-slate">
+          <div class="cust-option-color" style="background:#1a1f28"></div>Slate
+        </div>
+      </div>
+    </div>
+
+    <div class="cust-section">
+      <div class="cust-section-label">Font Family</div>
+      <div class="cust-options" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div class="cust-option" onclick="selectFont('font-sans')" data-font="font-sans">Sans-Serif</div>
+        <div class="cust-option" onclick="selectFont('font-serif')" data-font="font-serif">Serif</div>
+        <div class="cust-option" onclick="selectFont('font-mono')" data-font="font-mono">Mono</div>
+      </div>
+    </div>
+
+    <div class="cust-section">
+      <div class="cust-section-label">Font Size</div>
+      <div class="cust-options" style="grid-template-columns: 1fr 1fr;">
+        <div class="cust-option" onclick="selectFontSize('normal')" data-fontsize="normal">Normal (15px)</div>
+        <div class="cust-option" onclick="selectFontSize('font-large')" data-fontsize="font-large">Large (17px)</div>
+        <div class="cust-option" onclick="selectFontSize('font-xlarge')" data-fontsize="font-xlarge">X-Large (19px)</div>
+      </div>
+    </div>
+
+    <div class="cust-modal-footer">
+      <button class="cust-cancel" onclick="closeCustomization()">Cancel</button>
+      <button class="cust-save" onclick="saveCustomization()">Save Preferences</button>
+    </div>
+  </div>
+</div>
 
 <!-- Feature request modal -->
 <div class="fr-overlay" id="fr-overlay" onclick="closeFROnOverlay(event)">
@@ -342,6 +430,84 @@ document.addEventListener('click', () => {
   };
   apply();
 })();
+
+// Customization modal functionality
+let custSelectedTheme = localStorage.getItem('custTheme') || 'default';
+let custSelectedFont = localStorage.getItem('custFont') || 'font-sans';
+let custSelectedFontSize = localStorage.getItem('custFontSize') || 'normal';
+
+function applyCustomization() {
+  document.body.className = '';
+  if (custSelectedTheme && custSelectedTheme !== 'default') {
+    document.body.classList.add(custSelectedTheme);
+  }
+  document.body.classList.add(custSelectedFont);
+  if (custSelectedFontSize && custSelectedFontSize !== 'normal') {
+    document.body.classList.add(custSelectedFontSize);
+  }
+  updateCustomizationUI();
+}
+
+function updateCustomizationUI() {
+  document.querySelectorAll('.cust-option').forEach(el => {
+    el.classList.remove('active');
+  });
+  document.querySelector(`[data-theme="${custSelectedTheme}"]`)?.classList.add('active');
+  document.querySelector(`[data-font="${custSelectedFont}"]`)?.classList.add('active');
+  document.querySelector(`[data-fontsize="${custSelectedFontSize}"]`)?.classList.add('active');
+}
+
+function selectTheme(theme) {
+  custSelectedTheme = theme;
+}
+
+function selectFont(font) {
+  custSelectedFont = font;
+}
+
+function selectFontSize(size) {
+  custSelectedFontSize = size;
+}
+
+function openCustomization() {
+  document.getElementById('cust-overlay').classList.add('open');
+  updateCustomizationUI();
+}
+
+function closeCustomization() {
+  document.getElementById('cust-overlay').classList.remove('open');
+}
+
+function closeCustomizationOnOverlay(e) {
+  if (e.target === document.getElementById('cust-overlay')) closeCustomization();
+}
+
+async function saveCustomization() {
+  localStorage.setItem('custTheme', custSelectedTheme);
+  localStorage.setItem('custFont', custSelectedFont);
+  localStorage.setItem('custFontSize', custSelectedFontSize);
+
+  // Save to server
+  try {
+    await fetch('/settings/customization', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        theme: custSelectedTheme,
+        font: custSelectedFont,
+        fontSize: custSelectedFontSize
+      })
+    });
+  } catch(e) {
+    console.error('Failed to save customization:', e);
+  }
+
+  applyCustomization();
+  closeCustomization();
+}
+
+// Load customization on page load
+applyCustomization();
 </script>
 </body>
 </html>
