@@ -437,11 +437,18 @@ let custSelectedFont = localStorage.getItem('custFont') || 'font-sans';
 let custSelectedFontSize = localStorage.getItem('custFontSize') || 'normal';
 
 function applyCustomization() {
-  document.body.className = '';
+  // Remove all theme/font/size classes first
+  document.body.classList.remove('theme-ocean', 'theme-forest', 'theme-sunset', 'theme-twilight', 'theme-slate');
+  document.body.classList.remove('font-sans', 'font-serif', 'font-mono');
+  document.body.classList.remove('font-large', 'font-xlarge');
+
+  // Apply selected options
   if (custSelectedTheme && custSelectedTheme !== 'default') {
     document.body.classList.add(custSelectedTheme);
   }
-  document.body.classList.add(custSelectedFont);
+  if (custSelectedFont) {
+    document.body.classList.add(custSelectedFont);
+  }
   if (custSelectedFontSize && custSelectedFontSize !== 'normal') {
     document.body.classList.add(custSelectedFontSize);
   }

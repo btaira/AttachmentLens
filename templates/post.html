@@ -410,10 +410,10 @@ document.addEventListener('mouseup', function(e) {
       lastSelectedText = text;
       const range = sel.getRangeAt(0);
       const rect = range.getBoundingClientRect();
-      // Position: to the LEFT of the selection, ~6 lines below where it starts
-      const LINE_H = 30; // approx px per line (17px font * 1.9 line-height ≈ 32, use 30 for natural feel)
+      // Position: to the LEFT of the selection, 1 line below where it starts
+      const LINE_H = 32; // approx px per line (17px font * 1.9 line-height ≈ 32)
       const BTN_W  = 175; // approx button width
-      const top  = rect.top  + window.scrollY + LINE_H * 6;
+      const top  = rect.top  + window.scrollY + LINE_H;  // 1 line below
       const left = Math.max(4, rect.left + window.scrollX - BTN_W - 14);
       floatBtn.style.top  = top  + 'px';
       floatBtn.style.left = left + 'px';
@@ -442,7 +442,8 @@ async function saveInsight() {
     const data = await resp.json();
     if (data.ok) {
       floatBtn.innerHTML = '✓ Saved — <a href="/insights" style="color:#0f1117;text-decoration:underline">View Insights</a>';
-      setTimeout(() => { floatBtn.style.display = 'none'; }, 3000);
+      // Reload page after 1 second to show golden highlight
+      setTimeout(() => { window.location.reload(); }, 1000);
     }
   } catch(e) {
     floatBtn.textContent = '✗ Failed';
