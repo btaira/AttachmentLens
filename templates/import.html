@@ -298,28 +298,59 @@
       const artScope = getPostScope(body, 5);
       let postUrl = '', dateLabel = '';
 
-      // Pass 1: Find timestamp link by text pattern — FB's timestamp always has short clean text like
-      // "3h", "2d", "Monday", "January 5". Person names and obfuscated links never match.
+      // Pass 1: Find timestamp link by checking title/aria-label, then text content
       const TS_PAT = /^(\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
       const allLinks = [...artScope.querySelectorAll('a[href]')];
-      let tsLnk = allLinks.find(a => {
-        try {
-          const t = (a.innerText || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
-          return t.length > 0 && t.length <= 25 && TS_PAT.test(t);
-        } catch(e) { return false; }
+      let tsLnk = null;
+
+      // Strategy 1a: Look for link with timestamp in title or aria-label
+      tsLnk = allLinks.find(a => {
+        const attr = (a.getAttribute('title') || a.getAttribute('aria-label') || '').trim();
+        return attr.length > 0 && attr.length <= 30 && TS_PAT.test(attr);
       });
 
-      if (!tsLnk && allLinks.length > 0) {
-        // Log what we found to debug why Pass 1 failed
-        const linkTexts = allLinks.map(a => (a.innerText || '').replace(/\s+/g, ' ').trim()).slice(0, 3);
-        console.log('⚠️ Pass 1 found ' + allLinks.length + ' links but TS_PAT matched none. First few: [' + linkTexts.join(', ') + ']');
+      // Strategy 1b: Look for link with timestamp in text (clean whitespace)
+      if (!tsLnk) {
+        tsLnk = allLinks.find(a => {
+          try {
+            const t = (a.innerText || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+            return t.length > 0 && t.length <= 25 && TS_PAT.test(t);
+          } catch(e) { return false; }
+        });
+      }
+
+      // Strategy 1c: Look for link with data-utime attribute (unix timestamp)
+      if (!tsLnk) {
+        tsLnk = allLinks.find(a => a.getAttribute('data-utime'));
+      }
+
+      // Strategy 1d: Look for link containing timestamp patterns in href
+      if (!tsLnk) {
+        tsLnk = allLinks.find(a => {
+          const href = (a.href || '');
+          // Timestamp links usually contain /story.php, ?fbid=, or similar post identifiers
+          return /\/story\.php|[?&]fbid=|\d{13,}/.test(href);
+        });
       }
 
       if (tsLnk) {
         postUrl = tsLnk.href;
+        // Try to get date from various sources
+        let titleAttr = tsLnk.getAttribute('title') || tsLnk.getAttribute('aria-label') || '';
         const relText = (tsLnk.innerText || '').replace(/\s+/g, ' ').trim();
-        const titleText = tsLnk.getAttribute('title') || tsLnk.getAttribute('aria-label') || '';
-        dateLabel = relText ? (resolveRelativeDate(relText) || relText) : (titleText ? resolveRelativeDate(titleText) : '');
+        const utime = tsLnk.getAttribute('data-utime');
+
+        if (titleAttr && TS_PAT.test(titleAttr)) {
+          dateLabel = resolveRelativeDate(titleAttr) || titleAttr;
+        } else if (relText && TS_PAT.test(relText)) {
+          dateLabel = resolveRelativeDate(relText) || relText;
+        } else if (utime) {
+          const ts = parseInt(utime) * 1000;
+          const now = Date.now();
+          if (ts > 1420000000000 && ts <= now + 86400000) {
+            dateLabel = fmtDate(new Date(ts));
+          }
+        }
       }
 
       // Pass 2: If no timestamp link found (older posts), search page for dates and find closest match
