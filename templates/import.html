@@ -345,17 +345,25 @@
         if (candidates.length) {
           let closestDist = Infinity, closestDate = '';
           for (const {el, date} of candidates) {
-            // Calculate distance: how many steps to walk up from body or down from el
-            let dist = 0, n = body;
-            while (n && dist < 15) {
-              if (n === el) { closestDist = dist; closestDate = date; break; }
+            // Calculate distance: how many steps to walk up from body to find el
+            let dist = 0, n = body, found = false;
+            while (n && dist <= 20) {
+              if (n === el) {
+                found = true;
+                if (dist < closestDist) { closestDist = dist; closestDate = date; }
+                break;
+              }
               n = n.parentElement;
               dist++;
             }
-            if (dist < closestDist) { closestDist = dist; closestDate = date; }
           }
-          if (closestDate) dateLabel = closestDate;
+          if (closestDate) { dateLabel = closestDate; console.log('📅 Pass 2 matched: ' + closestDate + ' (distance: ' + closestDist + ')'); }
+          else console.log('⚠️ Pass 2 found ' + candidates.length + ' candidates but none were in ancestor chain (max distance 20)');
+        } else {
+          console.log('⚠️ Pass 2 found 0 date candidates on page');
         }
+      } else {
+        console.log('✓ Pass 1 (timestamp link) got date');
       }
 
       // Pass 3: find post permalink URL independently of the date search.
