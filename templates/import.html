@@ -310,7 +310,8 @@
       if (tsLnk) {
         postUrl = tsLnk.href;
         const relText = (tsLnk.innerText || '').replace(/\s+/g, ' ').trim();
-        dateLabel = relText ? (resolveRelativeDate(relText) || relText) : '';
+        const titleText = tsLnk.getAttribute('title') || tsLnk.getAttribute('aria-label') || '';
+        dateLabel = relText ? (resolveRelativeDate(relText) || relText) : (titleText ? resolveRelativeDate(titleText) : '');
       }
 
       // Pass 2: If no timestamp link found (older posts), search page for dates and find closest match
