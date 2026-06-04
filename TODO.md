@@ -2,9 +2,6 @@
 
 ## High Priority
 
-- [x] **Static Date** After the date for a post has been saved, it should remain permanent. Posts imported with dates are auto-locked and won't be overwritten by future imports.
-- [x] **[Requested by Brent, 2026-06-01]** Bug - after saving to insights, the text should change to golden yellow. Page now reloads after saving to show golden highlight immediately.
-- [x] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts. 🎨 Customize button in nav.
 - [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
 - [ ] **Duplicate detection** — flag near-duplicate posts (same text, slightly different formatting) before import; keep newest
 - [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
@@ -25,7 +22,9 @@
 - [ ] **Mobile-friendly layout** — the current design works on desktop; a responsive mobile layout would allow browsing and annotating on the go
 
 ## Already Built ✅
-
+- [x] **Static Date** After the date for a post has been saved, it should remain permanent. Posts imported with dates are auto-locked and won't be overwritten by future imports.
+- [x] **[Requested by Brent, 2026-06-01]** Bug - after saving to insights, the text should change to golden yellow. Page now reloads after saving to show golden highlight immediately.
+- [x] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts. 🎨 Customize button in nav.
 - [x] Import posts via Facebook scraper (console script)
 - [x] Attachment style auto-classifier
 - [x] Post detail with edit / personalize / word diff
