@@ -313,38 +313,48 @@
         dateLabel = relText ? (resolveRelativeDate(relText) || relText) : '';
       }
 
-      // Pass 2: If no timestamp link found (older posts), look for dates in data attributes/elements
+      // Pass 2: If no timestamp link found (older posts), search page for dates and find closest match
       if (!dateLabel) {
+        const FULL_DATE_RE = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b.{1,6}\d{1,2}.{0,4}\d{4}/i;
         const now = Date.now();
-        // Try data-utime (Unix timestamp attribute)
-        for (const el of artScope.querySelectorAll('[data-utime]')) {
+        let candidates = [];
+
+        // Scan entire page for date signals (data-utime, time[datetime], aria-label/title with dates)
+        for (const el of document.querySelectorAll('[data-utime]')) {
           const ts = parseInt(el.getAttribute('data-utime')) * 1000;
           if (ts > 1420000000000 && ts <= now + 86400000) {
-            dateLabel = fmtDate(new Date(ts));
-            break;
+            candidates.push({el, date: fmtDate(new Date(ts))});
           }
         }
-        // Try time[datetime] elements
-        if (!dateLabel) {
-          for (const el of artScope.querySelectorAll('time[datetime]')) {
-            const val = el.getAttribute('datetime') || '';
-            const d = new Date(val);
-            if (!isNaN(d) && d.getFullYear() > 2010) {
-              dateLabel = fmtDate(d);
-              break;
-            }
+        for (const el of document.querySelectorAll('time[datetime]')) {
+          const val = el.getAttribute('datetime') || '';
+          const d = new Date(val);
+          if (!isNaN(d) && d.getFullYear() > 2010) {
+            candidates.push({el, date: fmtDate(d)});
           }
         }
-        // Try aria-label or title attributes with full dates
-        if (!dateLabel) {
-          const FULL_DATE_RE = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b.{1,6}\d{1,2}.{0,4}\d{4}/i;
-          for (const el of artScope.querySelectorAll('[aria-label],[title]')) {
-            const v = el.getAttribute('aria-label') || el.getAttribute('title') || '';
-            if (FULL_DATE_RE.test(v)) {
-              dateLabel = v.replace(/\s+at\s+\d{1,2}:\d{2}\s*(AM|PM)?/i, '').trim();
-              break;
-            }
+        for (const el of document.querySelectorAll('[aria-label],[title]')) {
+          const v = el.getAttribute('aria-label') || el.getAttribute('title') || '';
+          if (FULL_DATE_RE.test(v)) {
+            const clean = v.replace(/\s+at\s+\d{1,2}:\d{2}\s*(AM|PM)?/i, '').trim();
+            candidates.push({el, date: clean});
           }
+        }
+
+        // Find the date candidate whose element is closest to the post body
+        if (candidates.length) {
+          let closestDist = Infinity, closestDate = '';
+          for (const {el, date} of candidates) {
+            // Calculate distance: how many steps to walk up from body or down from el
+            let dist = 0, n = body;
+            while (n && dist < 15) {
+              if (n === el) { closestDist = dist; closestDate = date; break; }
+              n = n.parentElement;
+              dist++;
+            }
+            if (dist < closestDist) { closestDist = dist; closestDate = date; }
+          }
+          if (closestDate) dateLabel = closestDate;
         }
       }
 
