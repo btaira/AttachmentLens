@@ -349,19 +349,6 @@
         if (tsLnk) { strategy = '1d (href)'; break; }
       }
 
-      if (!tsLnk) {
-        // Log all links found so we can debug why none matched
-        const linkInfo = allLinks.map((a, i) => {
-          const title = a.getAttribute('title') || '';
-          const attr = a.getAttribute('aria-label') || '';
-          const text = (a.innerText || '').replace(/\s+/g, ' ').trim().substring(0, 20);
-          const href = a.href.substring(a.href.indexOf('/derek') > -1 ? a.href.indexOf('/derek') : 0, a.href.indexOf('/derek') > -1 ? a.href.indexOf('/derek') + 30 : 20);
-          return i + ':' + (title || attr || text || href || '?');
-        });
-        console.log('⚠️ Pass 1 no match. ' + allLinks.length + ' links: [' + linkInfo.slice(0, 5).join(', ') + ']');
-      } else {
-        console.log('✓ Pass 1 strategy ' + strategy);
-      }
 
       if (tsLnk) {
         postUrl = tsLnk.href;
@@ -381,6 +368,11 @@
             dateLabel = fmtDate(new Date(ts));
           }
         }
+      }
+
+      // Only log if we didn't find a date in any scope (rare now)
+      if (!dateLabel && scopeUsed === 'page-wide') {
+        console.log('⚠️ Could not extract date from any link');
       }
 
       // Pass 2: If no timestamp link found (older posts), search page for dates and find closest match
