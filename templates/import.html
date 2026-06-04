@@ -301,12 +301,20 @@
       // Pass 1: Find timestamp link by text pattern — FB's timestamp always has short clean text like
       // "3h", "2d", "Monday", "January 5". Person names and obfuscated links never match.
       const TS_PAT = /^(\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
-      const tsLnk = [...artScope.querySelectorAll('a[href]')].find(a => {
+      const allLinks = [...artScope.querySelectorAll('a[href]')];
+      let tsLnk = allLinks.find(a => {
         try {
           const t = (a.innerText || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
           return t.length > 0 && t.length <= 25 && TS_PAT.test(t);
         } catch(e) { return false; }
       });
+
+      if (!tsLnk && allLinks.length > 0) {
+        // Log what we found to debug why Pass 1 failed
+        const linkTexts = allLinks.map(a => (a.innerText || '').replace(/\s+/g, ' ').trim()).slice(0, 3);
+        console.log('⚠️ Pass 1 found ' + allLinks.length + ' links but TS_PAT matched none. First few: [' + linkTexts.join(', ') + ']');
+      }
+
       if (tsLnk) {
         postUrl = tsLnk.href;
         const relText = (tsLnk.innerText || '').replace(/\s+/g, ' ').trim();
