@@ -265,6 +265,19 @@
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   }
 
+  // Validate that a string is actually a date, not a name or other text
+  function isLikelyDate(str) {
+    if (!str) return false;
+    const s = str.toLowerCase().trim();
+    // Should contain a month name or time unit (d/h/m/s/w/y) or be in date format
+    const datePatterns = /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b|\d{1,2}[,\s]\s*\d{4}|\d{1,2}\s*(days?|hours?|minutes?|seconds?|weeks?|months?|years?)|\b(yesterday|today|tomorrow)\b/i;
+    // Reject if it looks like a person's name (contains "by", no numbers, multiple capital letters)
+    if (/^[A-Z][a-z]+\s+[A-Z][a-z]+$/.test(str) && !/\d/.test(str)) return false;
+    // Reject single words that are clearly not dates
+    if (/^(marketplace|home|feed|share|comment|like|love|post)$/i.test(s)) return false;
+    return datePatterns.test(str);
+  }
+
   function parseKM(s) {
     s = (s || '').replace(/,/g, '').trim();
     if (/[Kk]$/.test(s)) return Math.round(parseFloat(s) * 1000);
@@ -358,10 +371,14 @@
         const utime = tsLnk.getAttribute('data-utime');
 
         if (titleAttr && TS_PAT.test(titleAttr)) {
-          dateLabel = resolveRelativeDate(titleAttr) || titleAttr;
-        } else if (relText && TS_PAT.test(relText)) {
-          dateLabel = resolveRelativeDate(relText) || relText;
-        } else if (utime) {
+          const candidate = resolveRelativeDate(titleAttr) || titleAttr;
+          if (isLikelyDate(candidate)) dateLabel = candidate;
+        }
+        if (!dateLabel && relText && TS_PAT.test(relText)) {
+          const candidate = resolveRelativeDate(relText) || relText;
+          if (isLikelyDate(candidate)) dateLabel = candidate;
+        }
+        if (!dateLabel && utime) {
           const ts = parseInt(utime) * 1000;
           const now = Date.now();
           if (ts > 1420000000000 && ts <= now + 86400000) {
