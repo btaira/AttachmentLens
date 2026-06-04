@@ -298,7 +298,7 @@
       const artScope = getPostScope(body, 5);
       let postUrl = '', dateLabel = '';
 
-      // Find timestamp link by text pattern — FB's timestamp always has short clean text like
+      // Pass 1: Find timestamp link by text pattern — FB's timestamp always has short clean text like
       // "3h", "2d", "Monday", "January 5". Person names and obfuscated links never match.
       const TS_PAT = /^(\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
       const tsLnk = [...artScope.querySelectorAll('a[href]')].find(a => {
@@ -311,6 +311,41 @@
         postUrl = tsLnk.href;
         const relText = (tsLnk.innerText || '').replace(/\s+/g, ' ').trim();
         dateLabel = relText ? (resolveRelativeDate(relText) || relText) : '';
+      }
+
+      // Pass 2: If no timestamp link found (older posts), look for dates in data attributes/elements
+      if (!dateLabel) {
+        const now = Date.now();
+        // Try data-utime (Unix timestamp attribute)
+        for (const el of artScope.querySelectorAll('[data-utime]')) {
+          const ts = parseInt(el.getAttribute('data-utime')) * 1000;
+          if (ts > 1420000000000 && ts <= now + 86400000) {
+            dateLabel = fmtDate(new Date(ts));
+            break;
+          }
+        }
+        // Try time[datetime] elements
+        if (!dateLabel) {
+          for (const el of artScope.querySelectorAll('time[datetime]')) {
+            const val = el.getAttribute('datetime') || '';
+            const d = new Date(val);
+            if (!isNaN(d) && d.getFullYear() > 2010) {
+              dateLabel = fmtDate(d);
+              break;
+            }
+          }
+        }
+        // Try aria-label or title attributes with full dates
+        if (!dateLabel) {
+          const FULL_DATE_RE = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b.{1,6}\d{1,2}.{0,4}\d{4}/i;
+          for (const el of artScope.querySelectorAll('[aria-label],[title]')) {
+            const v = el.getAttribute('aria-label') || el.getAttribute('title') || '';
+            if (FULL_DATE_RE.test(v)) {
+              dateLabel = v.replace(/\s+at\s+\d{1,2}:\d{2}\s*(AM|PM)?/i, '').trim();
+              break;
+            }
+          }
+        }
       }
 
       // Pass 3: find post permalink URL independently of the date search.
