@@ -148,11 +148,12 @@
   const TARGET = 20;  // posts to collect
   const SCROLL_WAIT = 7000;  // ms to wait after each scroll (increase if slow connection)
   const MAX_STALE = 25;      // stale rounds before giving up (more = more patient)
+  const DEBUG = false;  // set to true to see detailed extraction logs (pass 1, pass 2, etc.)
   // ────────────────────────────────────────────────
 
   let collected = [], seen = new Set(), staleRounds = 0;
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  console.log('🚀 Starting — target: ' + TARGET + ' posts');
+  console.log('🚀 Starting — target: ' + TARGET + ' posts' + (DEBUG ? ' [DEBUG ON]' : ''));
 
   async function expandSeeMore() {
     [...document.querySelectorAll('[role="button"]')]
@@ -388,7 +389,7 @@
       }
 
       // Only log if we didn't find a date in any scope (rare now)
-      if (!dateLabel && scopeUsed === 'page-wide') {
+      if (!dateLabel && scopeUsed === 'page-wide' && DEBUG) {
         console.log('⚠️ Could not extract date from any link');
       }
 
@@ -436,13 +437,13 @@
               dist++;
             }
           }
-          if (closestDate) { dateLabel = closestDate; console.log('📅 Pass 2 matched: ' + closestDate + ' (distance: ' + closestDist + ')'); }
-          else console.log('⚠️ Pass 2 found ' + candidates.length + ' candidates but none were in ancestor chain (max distance 20)');
+          if (closestDate) { dateLabel = closestDate; if (DEBUG) console.log('📅 Pass 2 matched: ' + closestDate + ' (distance: ' + closestDist + ')'); }
+          else if (DEBUG) console.log('⚠️ Pass 2 found ' + candidates.length + ' candidates but none were in ancestor chain (max distance 20)');
         } else {
-          console.log('⚠️ Pass 2 found 0 date candidates on page');
+          if (DEBUG) console.log('⚠️ Pass 2 found 0 date candidates on page');
         }
       } else {
-        console.log('✓ Pass 1 (timestamp link) got date');
+        if (DEBUG) console.log('✓ Pass 1 (timestamp link) got date');
       }
 
       // Pass 3: Try to extract date from post URL itself or any remaining text
@@ -462,7 +463,7 @@
             if (text.length > 50) continue; // Skip long text
             if (FULL_DATE_RE.test(text)) {
               dateLabel = text.match(FULL_DATE_RE)[0];
-              console.log('📅 Pass 3 found date in text: ' + dateLabel);
+              if (DEBUG) console.log('📅 Pass 3 found date in text: ' + dateLabel);
               break;
             }
           }
