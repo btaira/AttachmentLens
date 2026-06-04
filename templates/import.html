@@ -367,7 +367,31 @@
         console.log('✓ Pass 1 (timestamp link) got date');
       }
 
-      // Pass 3: find post permalink URL independently of the date search.
+      // Pass 3: Try to extract date from post URL itself or any remaining text
+      if (!dateLabel) {
+        const FULL_DATE_RE = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b.{1,6}\d{1,2}.{0,4}\d{4}/i;
+        // Check if URL itself contains a date
+        if (postUrl && FULL_DATE_RE.test(postUrl)) {
+          const match = postUrl.match(FULL_DATE_RE);
+          if (match) dateLabel = match[0];
+        }
+        // Look for any text that looks like a date in the post's expanded scope
+        if (!dateLabel) {
+          const expandedScope = getPostScope(body, 8);
+          for (const el of expandedScope.querySelectorAll('*')) {
+            if (el.children.length > 0) continue; // Skip containers, look at leaf elements
+            const text = (el.innerText || '').trim();
+            if (text.length > 50) continue; // Skip long text
+            if (FULL_DATE_RE.test(text)) {
+              dateLabel = text.match(FULL_DATE_RE)[0];
+              console.log('📅 Pass 3 found date in text: ' + dateLabel);
+              break;
+            }
+          }
+        }
+      }
+
+      // Pass 5: find post permalink URL independently of the date search.
       // For recent posts the timestamp link points to the profile, not the post.
       // Look for any link in scope whose href contains a post-specific path segment.
       if (!postUrl) {
