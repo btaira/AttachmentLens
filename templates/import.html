@@ -302,12 +302,14 @@
       const TS_PAT = /^(\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
       const allLinks = [...artScope.querySelectorAll('a[href]')];
       let tsLnk = null;
+      let strategy = '';
 
       // Strategy 1a: Look for link with timestamp in title or aria-label
       tsLnk = allLinks.find(a => {
         const attr = (a.getAttribute('title') || a.getAttribute('aria-label') || '').trim();
         return attr.length > 0 && attr.length <= 30 && TS_PAT.test(attr);
       });
+      if (tsLnk) strategy = '1a (attr)';
 
       // Strategy 1b: Look for link with timestamp in text (clean whitespace)
       if (!tsLnk) {
@@ -317,11 +319,13 @@
             return t.length > 0 && t.length <= 25 && TS_PAT.test(t);
           } catch(e) { return false; }
         });
+        if (tsLnk) strategy = '1b (text)';
       }
 
       // Strategy 1c: Look for link with data-utime attribute (unix timestamp)
       if (!tsLnk) {
         tsLnk = allLinks.find(a => a.getAttribute('data-utime'));
+        if (tsLnk) strategy = '1c (utime)';
       }
 
       // Strategy 1d: Look for link containing timestamp patterns in href
@@ -331,6 +335,21 @@
           // Timestamp links usually contain /story.php, ?fbid=, or similar post identifiers
           return /\/story\.php|[?&]fbid=|\d{13,}/.test(href);
         });
+        if (tsLnk) strategy = '1d (href)';
+      }
+
+      if (!tsLnk) {
+        // Log all links found so we can debug why none matched
+        const linkInfo = allLinks.map((a, i) => {
+          const title = a.getAttribute('title') || '';
+          const attr = a.getAttribute('aria-label') || '';
+          const text = (a.innerText || '').replace(/\s+/g, ' ').trim().substring(0, 20);
+          const href = a.href.substring(a.href.indexOf('/derek') > -1 ? a.href.indexOf('/derek') : 0, a.href.indexOf('/derek') > -1 ? a.href.indexOf('/derek') + 30 : 20);
+          return i + ':' + (title || attr || text || href || '?');
+        });
+        console.log('⚠️ Pass 1 no match. ' + allLinks.length + ' links: [' + linkInfo.slice(0, 5).join(', ') + ']');
+      } else {
+        console.log('✓ Pass 1 strategy ' + strategy);
       }
 
       if (tsLnk) {
