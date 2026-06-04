@@ -33,9 +33,8 @@
   body.theme-slate { --bg: #1a1f28; --surface: #252d38; --surface2: #303d50; --text: #e8ecf2; }
   body.font-sans { --font-family: 'Segoe UI', system-ui, sans-serif; }
   body.font-serif { --font-family: Georgia, serif; }
-  body.font-mono { --font-family: 'Monaco', 'Courier New', monospace; }
-  body.font-large { --base-font-size: 17px; }
-  body.font-xlarge { --base-font-size: 19px; }
+  body.font-garamond { --font-family: 'Garamond', Georgia, serif; }
+  body.font-arvo { --font-family: 'Arvo', serif; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-family); font-size: var(--base-font-size); line-height: 1.6; }
   a { color: var(--accent); text-decoration: none; }
@@ -313,19 +312,6 @@
       </div>
     </div>
 
-    <div class="cust-section">
-      <div class="cust-section-label">Font Size</div>
-      <div class="cust-options" style="grid-template-columns: repeat(4, 1fr); gap: 8px;">
-        <div class="cust-option" onclick="selectFontSize('font-12')" data-fontsize="font-12">Small (12px)</div>
-        <div class="cust-option" onclick="selectFontSize('font-14')" data-fontsize="font-14">14px</div>
-        <div class="cust-option" onclick="selectFontSize('font-16')" data-fontsize="font-16">16px</div>
-        <div class="cust-option" onclick="selectFontSize('font-18')" data-fontsize="font-18">18px</div>
-        <div class="cust-option" onclick="selectFontSize('font-20')" data-fontsize="font-20">20px</div>
-        <div class="cust-option" onclick="selectFontSize('font-22')" data-fontsize="font-22">22px</div>
-        <div class="cust-option" onclick="selectFontSize('font-24')" data-fontsize="font-24">Large (24px)</div>
-      </div>
-    </div>
-
     <div class="cust-modal-footer">
       <button class="cust-cancel" onclick="closeCustomization()">Cancel</button>
       <button class="cust-save" onclick="saveCustomization()">Save Preferences</button>
@@ -438,7 +424,6 @@ document.addEventListener('click', () => {
 // Customization modal functionality
 let custSelectedTheme = localStorage.getItem('custTheme') || 'default';
 let custSelectedFont = localStorage.getItem('custFont') || 'font-sans';
-let custSelectedFontSize = localStorage.getItem('custFontSize') || 'font-16';
 
 const themeColors = {
   'default': { bg: '#0f1117', surface: '#1a1d27', surface2: '#242736', text: '#e8eaf6' },
@@ -455,16 +440,6 @@ const fontFamilies = {
   'font-arvo': "'Arvo', serif"
 };
 
-const fontSizes = {
-  'font-12': '12px',
-  'font-14': '14px',
-  'font-16': '16px',
-  'font-18': '18px',
-  'font-20': '20px',
-  'font-22': '22px',
-  'font-24': '24px'
-};
-
 function applyCustomization() {
   // Apply theme colors via CSS variables
   const theme = themeColors[custSelectedTheme] || themeColors['default'];
@@ -478,11 +453,6 @@ function applyCustomization() {
   document.documentElement.style.setProperty('--font-family', font);
   document.body.style.fontFamily = font; // Also apply directly to body
 
-  // Apply font size via CSS variable and directly to body for better coverage
-  const size = fontSizes[custSelectedFontSize] || fontSizes['font-16'];
-  document.documentElement.style.setProperty('--base-font-size', size);
-  document.body.style.fontSize = size; // Also apply directly to body
-
   updateCustomizationUI();
 }
 
@@ -492,7 +462,6 @@ function updateCustomizationUI() {
   });
   document.querySelector(`[data-theme="${custSelectedTheme}"]`)?.classList.add('active');
   document.querySelector(`[data-font="${custSelectedFont}"]`)?.classList.add('active');
-  document.querySelector(`[data-fontsize="${custSelectedFontSize}"]`)?.classList.add('active');
 }
 
 function selectTheme(theme) {
@@ -502,11 +471,6 @@ function selectTheme(theme) {
 
 function selectFont(font) {
   custSelectedFont = font;
-  updateCustomizationUI();
-}
-
-function selectFontSize(size) {
-  custSelectedFontSize = size;
   updateCustomizationUI();
 }
 
@@ -526,7 +490,6 @@ function closeCustomizationOnOverlay(e) {
 async function saveCustomization() {
   localStorage.setItem('custTheme', custSelectedTheme);
   localStorage.setItem('custFont', custSelectedFont);
-  localStorage.setItem('custFontSize', custSelectedFontSize);
 
   // Save to server
   try {
@@ -535,8 +498,7 @@ async function saveCustomization() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         theme: custSelectedTheme,
-        font: custSelectedFont,
-        fontSize: custSelectedFontSize
+        font: custSelectedFont
       })
     });
   } catch(e) {
