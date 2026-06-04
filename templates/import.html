@@ -300,42 +300,53 @@
 
       // Pass 1: Find timestamp link by checking title/aria-label, then text content
       const TS_PAT = /^(\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
-      const allLinks = [...artScope.querySelectorAll('a[href]')];
+
+      // Try multiple scopes: artScope (5 levels), then wider scope (15 levels), then entire page
+      let allLinks = [...artScope.querySelectorAll('a[href]')];
       let tsLnk = null;
       let strategy = '';
+      let scopeUsed = 'artScope(5)';
 
-      // Strategy 1a: Look for link with timestamp in title or aria-label
-      tsLnk = allLinks.find(a => {
-        const attr = (a.getAttribute('title') || a.getAttribute('aria-label') || '').trim();
-        return attr.length > 0 && attr.length <= 30 && TS_PAT.test(attr);
-      });
-      if (tsLnk) strategy = '1a (attr)';
+      // Try artScope first (original 5-level scope)
+      for (let scopeLevel = 5; scopeLevel <= 30; scopeLevel += 10) {
+        tsLnk = null;
+        if (scopeLevel === 5) {
+          allLinks = [...artScope.querySelectorAll('a[href]')];
+          scopeUsed = 'artScope(5)';
+        } else if (scopeLevel === 15) {
+          allLinks = [...getPostScope(body, 15).querySelectorAll('a[href]')];
+          scopeUsed = 'artScope(15)';
+        } else {
+          allLinks = [...document.querySelectorAll('a[href]')];
+          scopeUsed = 'page-wide';
+        }
 
-      // Strategy 1b: Look for link with timestamp in text (clean whitespace)
-      if (!tsLnk) {
+        // Strategy 1a: Look for link with timestamp in title or aria-label
+        tsLnk = allLinks.find(a => {
+          const attr = (a.getAttribute('title') || a.getAttribute('aria-label') || '').trim();
+          return attr.length > 0 && attr.length <= 30 && TS_PAT.test(attr);
+        });
+        if (tsLnk) { strategy = '1a (attr)'; break; }
+
+        // Strategy 1b: Look for link with timestamp in text (clean whitespace)
         tsLnk = allLinks.find(a => {
           try {
             const t = (a.innerText || '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
             return t.length > 0 && t.length <= 25 && TS_PAT.test(t);
           } catch(e) { return false; }
         });
-        if (tsLnk) strategy = '1b (text)';
-      }
+        if (tsLnk) { strategy = '1b (text)'; break; }
 
-      // Strategy 1c: Look for link with data-utime attribute (unix timestamp)
-      if (!tsLnk) {
+        // Strategy 1c: Look for link with data-utime attribute (unix timestamp)
         tsLnk = allLinks.find(a => a.getAttribute('data-utime'));
-        if (tsLnk) strategy = '1c (utime)';
-      }
+        if (tsLnk) { strategy = '1c (utime)'; break; }
 
-      // Strategy 1d: Look for link containing timestamp patterns in href
-      if (!tsLnk) {
+        // Strategy 1d: Look for link containing timestamp patterns in href
         tsLnk = allLinks.find(a => {
           const href = (a.href || '');
-          // Timestamp links usually contain /story.php, ?fbid=, or similar post identifiers
           return /\/story\.php|[?&]fbid=|\d{13,}/.test(href);
         });
-        if (tsLnk) strategy = '1d (href)';
+        if (tsLnk) { strategy = '1d (href)'; break; }
       }
 
       if (!tsLnk) {
