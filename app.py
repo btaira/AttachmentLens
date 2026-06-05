@@ -17,6 +17,13 @@ try:
 except ImportError:
     _has_anthropic = False
 
+try:
+    import zipfile
+    from io import BytesIO
+    _has_zipfile = True
+except ImportError:
+    _has_zipfile = False
+
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
 
@@ -1109,6 +1116,316 @@ def stats_page():
         insight_count=insight_count, analysis_count=analysis_count,
         modeled_count=modeled_count, timeline=timeline, top_posts=top_posts,
     )
+
+
+@app.route('/export-collection/<collection_type>')
+@login_required
+def export_collection(collection_type):
+    """Export a specific collection (insights, ai-analyses, or modeled-posts) as JSON"""
+    uid = current_user_id()
+
+    if collection_type == 'insights':
+        with get_db() as conn:
+            rows = conn.execute(
+                'SELECT * FROM insights WHERE user_id = ? ORDER BY id',
+                (uid,)
+            ).fetchall()
+        data = [dict(r) for r in rows]
+        filename = 'insights.json'
+    elif collection_type == 'ai-analyses':
+        with get_db() as conn:
+            rows = conn.execute(
+                'SELECT * FROM ai_analyses WHERE user_id = ? ORDER BY id',
+                (uid,)
+            ).fetchall()
+        data = [dict(r) for r in rows]
+        filename = 'ai-analyses.json'
+    elif collection_type == 'modeled-posts':
+        with get_db() as conn:
+            rows = conn.execute(
+                'SELECT * FROM modeled_posts WHERE user_id = ? ORDER BY id',
+                (uid,)
+            ).fetchall()
+        data = [dict(r) for r in rows]
+        filename = 'modeled-posts.json'
+    else:
+        return jsonify({'error': 'Unknown collection type'}), 400
+
+    payload = json.dumps({
+        'version': 1,
+        'exported_at': datetime.utcnow().isoformat(),
+        'collection_type': collection_type,
+        'count': len(data),
+        'data': data
+    }, indent=2)
+
+    from flask import Response
+    return Response(
+        payload,
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+@app.route('/restore-collection/<collection_type>', methods=['POST'])
+@login_required
+def restore_collection(collection_type):
+    """Restore a collection from exported JSON"""
+    uid = current_user_id()
+    body = request.get_json(force=True) or {}
+
+    if not isinstance(body, dict):
+        return jsonify({'error': 'Expected JSON object'}), 400
+
+    # Handle both direct array format and wrapped format
+    data = body.get('data', body) if 'data' in body else body
+    if not isinstance(data, list):
+        data = [data] if isinstance(data, dict) else []
+
+    if not data:
+        return jsonify({'error': 'No data to restore'}), 400
+
+    imported = 0
+    skipped = 0
+
+    with get_db() as conn:
+        if collection_type == 'insights':
+            for item in data:
+                # Check for duplicates based on user_id, post_id, and highlighted_text
+                existing = conn.execute(
+                    'SELECT id FROM insights WHERE user_id = ? AND post_id = ? AND highlighted_text = ?',
+                    (uid, item.get('post_id'), item.get('highlighted_text'))
+                ).fetchone()
+                if existing:
+                    skipped += 1
+                    continue
+                conn.execute(
+                    'INSERT INTO insights (user_id, post_id, highlighted_text, my_thoughts, created_at) VALUES (?, ?, ?, ?, ?)',
+                    (uid, item.get('post_id'), item.get('highlighted_text'),
+                     item.get('my_thoughts', ''), item.get('created_at', datetime.utcnow().isoformat()))
+                )
+                imported += 1
+        elif collection_type == 'ai-analyses':
+            for item in data:
+                # Check for duplicates based on analysis_text
+                existing = conn.execute(
+                    'SELECT id FROM ai_analyses WHERE user_id = ? AND analysis_text = ?',
+                    (uid, item.get('analysis_text'))
+                ).fetchone()
+                if existing:
+                    skipped += 1
+                    continue
+                conn.execute(
+                    'INSERT INTO ai_analyses (user_id, analysis_text, prompt_used, feedback, created_at) VALUES (?, ?, ?, ?, ?)',
+                    (uid, item.get('analysis_text'), item.get('prompt_used', ''),
+                     item.get('feedback', ''), item.get('created_at', datetime.utcnow().isoformat()))
+                )
+                imported += 1
+        elif collection_type == 'modeled-posts':
+            for item in data:
+                # Check for duplicates based on post_text
+                existing = conn.execute(
+                    'SELECT id FROM modeled_posts WHERE user_id = ? AND post_text = ?',
+                    (uid, item.get('post_text'))
+                ).fetchone()
+                if existing:
+                    skipped += 1
+                    continue
+                conn.execute(
+                    'INSERT INTO modeled_posts (user_id, post_text, attachment_style, topic, is_favorite, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                    (uid, item.get('post_text'), item.get('attachment_style'),
+                     item.get('topic'), item.get('is_favorite', 0), item.get('created_at', datetime.utcnow().isoformat()))
+                )
+                imported += 1
+        else:
+            return jsonify({'error': 'Unknown collection type'}), 400
+
+        conn.commit()
+
+    return jsonify({
+        'ok': True,
+        'imported': imported,
+        'skipped': skipped,
+        'collection_type': collection_type
+    })
+
+
+@app.route('/export-all-collections')
+@login_required
+def export_all_collections():
+    """Export all three collections (insights, ai-analyses, modeled-posts) as a ZIP file"""
+    if not _has_zipfile:
+        return jsonify({'error': 'ZIP support not available'}), 500
+
+    uid = current_user_id()
+
+    # Collect all three collections
+    collections = {}
+    with get_db() as conn:
+        insights = [dict(r) for r in conn.execute(
+            'SELECT * FROM insights WHERE user_id = ? ORDER BY id', (uid,)
+        ).fetchall()]
+        collections['insights'] = {
+            'version': 1,
+            'exported_at': datetime.utcnow().isoformat(),
+            'collection_type': 'insights',
+            'count': len(insights),
+            'data': insights
+        }
+
+        ai_analyses = [dict(r) for r in conn.execute(
+            'SELECT * FROM ai_analyses WHERE user_id = ? ORDER BY id', (uid,)
+        ).fetchall()]
+        collections['ai-analyses'] = {
+            'version': 1,
+            'exported_at': datetime.utcnow().isoformat(),
+            'collection_type': 'ai-analyses',
+            'count': len(ai_analyses),
+            'data': ai_analyses
+        }
+
+        modeled_posts = [dict(r) for r in conn.execute(
+            'SELECT * FROM modeled_posts WHERE user_id = ? ORDER BY id', (uid,)
+        ).fetchall()]
+        collections['modeled-posts'] = {
+            'version': 1,
+            'exported_at': datetime.utcnow().isoformat(),
+            'collection_type': 'modeled-posts',
+            'count': len(modeled_posts),
+            'data': modeled_posts
+        }
+
+    # Create ZIP file in memory
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for filename, data in collections.items():
+            json_content = json.dumps(data, indent=2)
+            zip_file.writestr(f'{filename}.json', json_content)
+
+    zip_buffer.seek(0)
+
+    from flask import Response
+    return Response(
+        zip_buffer.getvalue(),
+        mimetype='application/zip',
+        headers={'Content-Disposition': 'attachment; filename=personal-collections.zip'}
+    )
+
+
+@app.route('/restore-all-collections', methods=['POST'])
+@login_required
+def restore_all_collections():
+    """Restore all three collections from a ZIP file"""
+    if not _has_zipfile:
+        return jsonify({'error': 'ZIP support not available'}), 500
+
+    uid = current_user_id()
+
+    if 'zipfile' not in request.files:
+        return jsonify({'error': 'No ZIP file provided'}), 400
+
+    zip_file = request.files['zipfile']
+    if not zip_file or zip_file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    results = {}
+
+    try:
+        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+            filelist = zip_ref.namelist()
+
+            conn = get_db()
+            try:
+                for filename in filelist:
+                    if not filename.endswith('.json'):
+                        continue
+
+                    # Determine collection type from filename
+                    if 'insights' in filename:
+                        collection_type = 'insights'
+                    elif 'ai-analyses' in filename or 'ai_analyses' in filename:
+                        collection_type = 'ai-analyses'
+                    elif 'modeled-posts' in filename or 'modeled_posts' in filename:
+                        collection_type = 'modeled-posts'
+                    else:
+                        continue
+
+                    # Read and parse JSON
+                    json_content = zip_ref.read(filename).decode('utf-8')
+                    body = json.loads(json_content)
+                    data = body.get('data', body) if 'data' in body else body
+                    if not isinstance(data, list):
+                        data = [data] if isinstance(data, dict) else []
+
+                    imported = 0
+                    skipped = 0
+
+                    if collection_type == 'insights':
+                        for item in data:
+                            existing = conn.execute(
+                                'SELECT id FROM insights WHERE user_id = ? AND post_id = ? AND highlighted_text = ?',
+                                (uid, item.get('post_id'), item.get('highlighted_text'))
+                            ).fetchone()
+                            if existing:
+                                skipped += 1
+                                continue
+                            conn.execute(
+                                'INSERT INTO insights (user_id, post_id, highlighted_text, my_thoughts, created_at) VALUES (?, ?, ?, ?, ?)',
+                                (uid, item.get('post_id'), item.get('highlighted_text'),
+                                 item.get('my_thoughts', ''), item.get('created_at', datetime.utcnow().isoformat()))
+                            )
+                            imported += 1
+                    elif collection_type == 'ai-analyses':
+                        for item in data:
+                            existing = conn.execute(
+                                'SELECT id FROM ai_analyses WHERE user_id = ? AND analysis_text = ?',
+                                (uid, item.get('analysis_text'))
+                            ).fetchone()
+                            if existing:
+                                skipped += 1
+                                continue
+                            conn.execute(
+                                'INSERT INTO ai_analyses (user_id, analysis_text, prompt_used, feedback, created_at) VALUES (?, ?, ?, ?, ?)',
+                                (uid, item.get('analysis_text'), item.get('prompt_used', ''),
+                                 item.get('feedback', ''), item.get('created_at', datetime.utcnow().isoformat()))
+                            )
+                            imported += 1
+                    elif collection_type == 'modeled-posts':
+                        for item in data:
+                            existing = conn.execute(
+                                'SELECT id FROM modeled_posts WHERE user_id = ? AND post_text = ?',
+                                (uid, item.get('post_text'))
+                            ).fetchone()
+                            if existing:
+                                skipped += 1
+                                continue
+                            conn.execute(
+                                'INSERT INTO modeled_posts (user_id, post_text, attachment_style, topic, is_favorite, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                                (uid, item.get('post_text'), item.get('attachment_style'),
+                                 item.get('topic'), item.get('is_favorite', 0), item.get('created_at', datetime.utcnow().isoformat()))
+                            )
+                            imported += 1
+
+                    results[collection_type] = {
+                        'imported': imported,
+                        'skipped': skipped
+                    }
+
+                conn.commit()
+            finally:
+                conn.close()
+
+        return jsonify({
+            'ok': True,
+            'insights': results.get('insights', {'imported': 0, 'skipped': 0}),
+            'ai-analyses': results.get('ai-analyses', {'imported': 0, 'skipped': 0}),
+            'modeled-posts': results.get('modeled-posts', {'imported': 0, 'skipped': 0})
+        })
+
+    except zipfile.BadZipFile:
+        return jsonify({'error': 'Invalid ZIP file'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/backup')

@@ -688,6 +688,79 @@
       </div>
     </div>
 
+    <!-- ── Collections (Insights, AI Analysis, Modeled Posts) ────────── -->
+    <div style="margin-top:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">📚 Personal Collections</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+
+      <!-- Quick Actions: Download All / Restore All -->
+      <div style="background:var(--surface);border:2px solid var(--accent);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
+        <p style="font-size:13px;color:var(--text);font-weight:600;margin:0 0 6px 0">⚡ Quick Actions</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="/export-all-collections" class="action-btn" style="background:var(--accent);text-decoration:none;flex:1;min-width:150px;justify-content:center">
+            ⬇ Download All (ZIP)
+          </a>
+          <button class="action-btn" id="restore-all-btn" onclick="document.getElementById('restore-all-file').click()" style="background:var(--accent2);color:#0f1117;flex:1;min-width:150px;justify-content:center">
+            ⬆ Restore All (ZIP)
+          </button>
+          <input type="file" id="restore-all-file" accept=".zip" style="display:none" onchange="restoreAllCollections(this)">
+        </div>
+        <div style="font-size:12px;color:var(--muted)">One-click backup & restore of all your personal data</div>
+      </div>
+
+      <!-- Individual Collections -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+
+        <!-- Insights -->
+        <div>
+          <p style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:6px">📌 Saved Insights</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="/export-collection/insights" class="action-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);text-decoration:none">
+              ⬇ Download Insights
+            </a>
+            <button class="action-btn" id="insights-upload-btn" onclick="document.getElementById('insights-file').click()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+              ⬆ Restore Insights
+            </button>
+            <input type="file" id="insights-file" accept=".json" style="display:none" onchange="restoreCollection(this, 'insights')">
+          </div>
+          <div id="insights-status" class="btn-label" style="text-align:left;padding-left:4px;margin-top:4px">Your highlighted text and personal thoughts</div>
+        </div>
+
+        <!-- AI Analysis -->
+        <div style="border-top:1px solid var(--border);padding-top:12px">
+          <p style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:6px">🧠 AI Analysis History</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="/export-collection/ai-analyses" class="action-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);text-decoration:none">
+              ⬇ Download AI Analyses
+            </a>
+            <button class="action-btn" id="ai-upload-btn" onclick="document.getElementById('ai-file').click()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+              ⬆ Restore AI Analyses
+            </button>
+            <input type="file" id="ai-file" accept=".json" style="display:none" onchange="restoreCollection(this, 'ai-analyses')">
+          </div>
+          <div id="ai-status" class="btn-label" style="text-align:left;padding-left:4px;margin-top:4px">All AI-generated analysis and feedback history</div>
+        </div>
+
+        <!-- Modeled Posts -->
+        <div style="border-top:1px solid var(--border);padding-top:12px">
+          <p style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:6px">✍ Modeled Posts</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="/export-collection/modeled-posts" class="action-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);text-decoration:none">
+              ⬇ Download Modeled Posts
+            </a>
+            <button class="action-btn" id="modeled-upload-btn" onclick="document.getElementById('modeled-file').click()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+              ⬆ Restore Modeled Posts
+            </button>
+            <input type="file" id="modeled-file" accept=".json" style="display:none" onchange="restoreCollection(this, 'modeled-posts')">
+          </div>
+          <div id="modeled-status" class="btn-label" style="text-align:left;padding-left:4px;margin-top:4px">AI-generated posts written in the app's style</div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ── GitHub Integration ────────────────────────────────────────── -->
     <div style="margin-top:18px" id="github-section">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -1007,6 +1080,88 @@ async function exportPostsToGithub() {
     status.textContent = 'Export failed';
   }
   btn.disabled = false; btn.textContent = '🚀 Push to GitHub (posts-database.json)';
+}
+
+async function restoreCollection(input, collectionType) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const statusMap = {
+    'insights': 'insights-status',
+    'ai-analyses': 'ai-status',
+    'modeled-posts': 'modeled-status'
+  };
+  const status = document.getElementById(statusMap[collectionType]);
+  status.textContent = 'Reading file…';
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    const resp = await fetch(`/restore-collection/${collectionType}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await resp.json();
+
+    if (result.error) {
+      status.textContent = 'Error: ' + result.error;
+      status.style.color = 'var(--anxious)';
+    } else {
+      let msg = `Restored ${result.imported || result.count || 0} items`;
+      if (result.skipped) msg += ` (${result.skipped} skipped as duplicates)`;
+      status.textContent = msg;
+      status.style.color = 'var(--secure)';
+    }
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = 'var(--anxious)';
+  }
+  input.value = '';
+}
+
+async function restoreAllCollections(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const successBox = document.getElementById('success-box');
+  const errorBox = document.getElementById('error-box');
+  successBox.style.display = 'none'; errorBox.style.display = 'none';
+
+  const btn = document.getElementById('restore-all-btn');
+  btn.disabled = true; btn.textContent = 'Restoring…';
+
+  try {
+    const formData = new FormData();
+    formData.append('zipfile', file);
+
+    const resp = await fetch('/restore-all-collections', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await resp.json();
+
+    if (result.error) {
+      errorBox.textContent = 'Error: ' + result.error;
+      errorBox.style.display = '';
+    } else {
+      let msg = 'All collections restored successfully — ';
+      const parts = [];
+      if (result.insights) parts.push(result.insights.imported + ' insights');
+      if (result['ai-analyses']) parts.push(result['ai-analyses'].imported + ' analyses');
+      if (result['modeled-posts']) parts.push(result['modeled-posts'].imported + ' modeled posts');
+      msg += parts.join(', ');
+      successBox.textContent = msg;
+      successBox.style.display = '';
+    }
+  } catch(e) {
+    errorBox.textContent = 'Error: ' + e.message;
+    errorBox.style.display = '';
+  }
+
+  btn.disabled = false; btn.textContent = '⬆ Restore All (ZIP)';
+  input.value = '';
 }
 </script>
 {% endblock %}
