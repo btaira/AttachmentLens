@@ -2,6 +2,8 @@
 
 ## High Priority
 
+
+- [ ] **[Requested by Brent, 2026-06-05]** Show number of likes and also read status on Latest 5 posts cards
 - [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
 - [ ] **Duplicate detection** — flag near-duplicate posts (same text, slightly different formatting) before import; keep newest
 - [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
