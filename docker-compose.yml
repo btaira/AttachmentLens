@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   attachmentlens:
     build: .
@@ -11,4 +9,9 @@ services:
     environment:
       # Store database in the volume
       - DB_PATH=/app/data/posts.db
+      # Optional: API keys (from host .env file or pass via -e flag)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     restart: unless-stopped
+    env_file:
+      - .env
