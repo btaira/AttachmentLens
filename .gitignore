@@ -53,6 +53,10 @@ tmp/
 temp/
 *.tmp
 
+# Local secrets and keys
+.secret_key
+data/.secret_key
+
 # Secret scanning
 .secrets.baseline
 .secrets.new

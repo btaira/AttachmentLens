@@ -300,6 +300,16 @@ def login_required(f):
 
 def get_setting(key, default='', user_id=None):
     uid = user_id if user_id is not None else current_user_id()
+    # Check environment variables first (for secrets)
+    if key == 'anthropic_api_key':
+        env_val = os.getenv('ANTHROPIC_API_KEY')
+        if env_val:
+            return env_val
+    elif key == 'github_token':
+        env_val = os.getenv('GITHUB_TOKEN')
+        if env_val:
+            return env_val
+    # Fall back to database
     with get_db() as conn:
         row = conn.execute('SELECT value FROM settings WHERE user_id = ? AND key = ?', (uid, key)).fetchone()
         if not row:
