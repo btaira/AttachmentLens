@@ -7,6 +7,10 @@ import hashlib
 import secrets
 from datetime import datetime
 from functools import wraps
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 try:
     import anthropic
     _has_anthropic = True
@@ -660,7 +664,8 @@ def edit_post(post_id):
 @login_required
 def toggle_favorite(post_id):
     uid = current_user_id()
-    with get_db() as conn:
+    conn = get_db()
+    try:
         current = conn.execute(
             'SELECT is_favorite FROM user_post_prefs WHERE user_id = ? AND post_id = ?',
             (uid, post_id)
@@ -672,7 +677,12 @@ def toggle_favorite(post_id):
             ON CONFLICT(user_id, post_id) DO UPDATE SET is_favorite = excluded.is_favorite
         ''', (uid, post_id, new_val))
         conn.commit()
-    return jsonify({'is_favorite': new_val})
+        return jsonify({'is_favorite': new_val})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/post/<int:post_id>/revert', methods=['POST'])
@@ -1019,33 +1029,55 @@ def update_tags(post_id):
     if not isinstance(tags, list):
         tags = []
     tags_str = json.dumps(tags)
-    with get_db() as conn:
+    conn = get_db()
+    try:
         conn.execute('''
             INSERT INTO user_post_prefs (user_id, post_id, tags)
             VALUES (?, ?, ?)
             ON CONFLICT(user_id, post_id) DO UPDATE SET tags = excluded.tags
         ''', (uid, post_id, tags_str))
         conn.commit()
-    return jsonify({'ok': True, 'tags': tags})
+        return jsonify({'ok': True, 'tags': tags})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/post/<int:post_id>/read', methods=['POST'])
 @login_required
 def toggle_read(post_id):
     uid = current_user_id()
-    with get_db() as conn:
+    conn = get_db()
+    try:
+        # Check current state
         current = conn.execute(
             'SELECT is_read FROM user_post_prefs WHERE user_id = ? AND post_id = ?',
             (uid, post_id)
         ).fetchone()
         new_val = 0 if (current and current['is_read']) else 1
-        conn.execute('''
-            INSERT INTO user_post_prefs (user_id, post_id, is_read)
-            VALUES (?, ?, ?)
-            ON CONFLICT(user_id, post_id) DO UPDATE SET is_read = excluded.is_read
-        ''', (uid, post_id, new_val))
+
+        # Delete old record if exists (simpler than ON CONFLICT)
+        conn.execute(
+            'DELETE FROM user_post_prefs WHERE user_id = ? AND post_id = ?',
+            (uid, post_id)
+        )
+
+        # Insert new record
+        conn.execute(
+            'INSERT INTO user_post_prefs (user_id, post_id, is_read) VALUES (?, ?, ?)',
+            (uid, post_id, new_val)
+        )
+
+        # Make sure we commit
         conn.commit()
-    return jsonify({'is_read': new_val})
+        return jsonify({'is_read': new_val})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/stats')
@@ -1342,6 +1374,84 @@ def github_test():
         return jsonify({'ok': False, 'error': str(e)})
 
 
+@app.route('/export-posts-to-github', methods=['POST'])
+@login_required
+def export_posts_to_github():
+    """Export all posts as JSON to GitHub as posts-database.json"""
+    import urllib.request as urlreq
+    import base64
+
+    github_token = get_setting('github_token', '', user_id=1)
+    if not github_token:
+        return jsonify({'error': 'No GitHub token configured. Add one under GitHub Integration above.'}), 400
+
+    with get_db() as conn:
+        posts = [dict(r) for r in conn.execute('SELECT * FROM posts ORDER BY id DESC').fetchall()]
+
+    if not posts:
+        return jsonify({'error': 'No posts to export'}), 400
+
+    payload_json = json.dumps({
+        'version': 1,
+        'exported_at': datetime.utcnow().isoformat(),
+        'posts': posts
+    }, indent=2)
+
+    OWNER = 'btaira'
+    REPO = 'AttachmentLens'
+    PATH = 'posts-database.json'
+    API = f'https://api.github.com/repos/{OWNER}/{REPO}/contents/{PATH}'
+
+    def gh_request(url, data=None, method=None):
+        req = urlreq.Request(url, data=data, method=method)
+        req.add_header('Authorization', f'token {github_token}')
+        req.add_header('Accept', 'application/vnd.github+json')
+        req.add_header('X-GitHub-Api-Version', '2022-11-28')
+        if data:
+            req.add_header('Content-Type', 'application/json')
+        return req
+
+    try:
+        # Try to get existing file SHA
+        file_sha = None
+        try:
+            with urlreq.urlopen(gh_request(API), timeout=15) as resp:
+                file_data = json.loads(resp.read().decode())
+                file_sha = file_data.get('sha')
+        except urlreq.HTTPError as e:
+            if e.code != 404:
+                raise
+            # File doesn't exist yet, that's okay
+
+        # Create/update the file
+        payload = json.dumps({
+            'message': f'chore: update posts database ({len(posts)} posts)',
+            'content': base64.b64encode(payload_json.encode('utf-8')).decode(),
+            'sha': file_sha
+        }).encode('utf-8')
+
+        with urlreq.urlopen(gh_request(API, data=payload, method='PUT'), timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+
+        commit_url = result.get('commit', {}).get('html_url', '')
+        return jsonify({
+            'ok': True,
+            'count': len(posts),
+            'commit': commit_url,
+            'message': f'Exported {len(posts)} posts to posts-database.json'
+        })
+
+    except urlreq.HTTPError as e:
+        body = e.read().decode('utf-8', errors='replace')
+        try:
+            msg = json.loads(body).get('message', body)
+        except Exception:
+            msg = body[:200]
+        return jsonify({'error': f'GitHub {e.code}: {msg}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'{type(e).__name__}: {e}'}), 500
+
+
 @app.route('/feature-request', methods=['POST'])
 @login_required
 def feature_request():
@@ -1437,4 +1547,4 @@ def save_customization():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)

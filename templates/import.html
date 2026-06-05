@@ -681,6 +681,10 @@
           📂 Restore from Backup
         </button>
         <div class="btn-label" id="restore-status" style="text-align:left;padding-left:4px">Choose a previously downloaded backup JSON file — duplicates are skipped</div>
+        <button class="action-btn" id="export-gh-btn" onclick="exportPostsToGithub()" style="width:100%;justify-content:flex-start;background:var(--surface2);border:1px solid var(--border);margin-top:8px">
+          🚀 Push to GitHub (posts-database.json)
+        </button>
+        <div class="btn-label" id="export-gh-status" style="text-align:left;padding-left:4px">Exports all current posts as the new "best" starting database to GitHub (requires token)</div>
       </div>
     </div>
 
@@ -964,6 +968,45 @@ async function doImport() {
     }
   } catch(e) { errorBox.textContent = 'Request failed: ' + e.message; errorBox.style.display = ''; }
   btn.disabled = false; btn.innerHTML = '✅ Import Posts';
+}
+
+async function exportPostsToGithub() {
+  const btn = document.getElementById('export-gh-btn');
+  const status = document.getElementById('export-gh-status');
+  const successBox = document.getElementById('success-box');
+  const errorBox = document.getElementById('error-box');
+  successBox.style.display = 'none'; errorBox.style.display = 'none';
+
+  btn.disabled = true; btn.textContent = 'Exporting to GitHub…';
+  status.textContent = 'Preparing posts…';
+
+  try {
+    const resp = await fetch('/export-posts-to-github', { method: 'POST' });
+    const data = await resp.json();
+    if (data.error) {
+      errorBox.textContent = 'Error: ' + data.error;
+      errorBox.style.display = '';
+      status.textContent = 'Export failed';
+    } else {
+      successBox.textContent = 'Successfully pushed ' + data.count + ' posts to GitHub as posts-database.json';
+      successBox.style.display = '';
+      status.textContent = 'Latest posts exported to GitHub';
+      if (data.commit) {
+        const link = document.createElement('a');
+        link.href = data.commit;
+        link.target = '_blank';
+        link.textContent = 'View commit';
+        link.style.cssText = 'color:var(--accent2);margin-left:8px;text-decoration:none';
+        successBox.appendChild(document.createTextNode(' — '));
+        successBox.appendChild(link);
+      }
+    }
+  } catch(e) {
+    errorBox.textContent = 'Request failed: ' + e.message;
+    errorBox.style.display = '';
+    status.textContent = 'Export failed';
+  }
+  btn.disabled = false; btn.textContent = '🚀 Push to GitHub (posts-database.json)';
 }
 </script>
 {% endblock %}

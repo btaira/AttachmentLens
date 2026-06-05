@@ -441,9 +441,12 @@ async function saveInsight() {
     });
     const data = await resp.json();
     if (data.ok) {
+      // Add to saved highlights without reloading
+      SAVED_HIGHLIGHTS.push(lastSelectedText);
+      applyHighlightsToVisible();
+
       floatBtn.innerHTML = '✓ Saved — <a href="/insights" style="color:#0f1117;text-decoration:underline">View Insights</a>';
-      // Reload page after 1 second to show golden highlight
-      setTimeout(() => { window.location.reload(); }, 1000);
+      setTimeout(() => { floatBtn.style.display = 'none'; }, 2000);
     }
   } catch(e) {
     floatBtn.textContent = '✗ Failed';
@@ -503,12 +506,27 @@ async function saveTags() {
 
 // ── Read / Unread ─────────────────────────────────────────
 async function toggleRead(id, btn) {
-  const resp = await fetch('/post/' + id + '/read', { method: 'POST' });
-  const data = await resp.json();
-  if (data.is_read !== undefined) {
-    const isRead = !!data.is_read;
-    btn.textContent = isRead ? '✓ Read' : '○ Unread';
-    btn.classList.toggle('is-read', isRead);
+  try {
+    const url = '/post/' + id + '/read';
+    console.log('Sending POST to:', url);
+    const resp = await fetch(url, { method: 'POST' });
+    console.log('Response status:', resp.status);
+    const data = await resp.json();
+    console.log('Response data:', data);
+    if (data.error) {
+      console.error('Server error:', data.error);
+      alert('Error: ' + data.error);
+      return;
+    }
+    if (data.is_read !== undefined) {
+      const isRead = !!data.is_read;
+      btn.textContent = isRead ? '✓ Read' : '○ Unread';
+      btn.classList.toggle('is-read', isRead);
+      console.log('Button updated, is_read:', isRead);
+    }
+  } catch (e) {
+    console.error('toggleRead error:', e);
+    alert('Failed to update read status: ' + e.message);
   }
 }
 
@@ -567,16 +585,21 @@ function applyHighlights(containerEl) {
 }
 
 function highlightTextNodes(root, phrases) {
-  // Collect all text nodes within root
+  // Collect all text nodes within root (excluding nodes that are already in a saved-highlight)
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
   const textNodes = [];
   let node;
-  while ((node = walker.nextNode())) textNodes.push(node);
+  while ((node = walker.nextNode())) {
+    // Skip text nodes that are inside existing highlights
+    if (node.parentElement && node.parentElement.classList.contains('saved-highlight')) continue;
+    textNodes.push(node);
+  }
 
   for (const phrase of phrases) {
     if (!phrase || phrase.length < 3) continue;
     const lower = phrase.toLowerCase();
-    for (const tn of textNodes) {
+    for (let i = 0; i < textNodes.length; i++) {
+      const tn = textNodes[i];
       const idx = tn.nodeValue.toLowerCase().indexOf(lower);
       if (idx === -1) continue;
       // Split the text node around the match and wrap in <mark>
@@ -594,8 +617,8 @@ function highlightTextNodes(root, phrases) {
       parent.insertBefore(afterNode, tn);
       parent.removeChild(tn);
       // Update textNodes array: replace tn with afterNode for further matches in same text
-      const i = textNodes.indexOf(tn);
       textNodes.splice(i, 1, afterNode);
+      i--; // re-check this position in case multiple phrases match
       break; // one match per phrase per pass is enough
     }
   }
@@ -605,29 +628,31 @@ function highlightTextNodes(root, phrases) {
 function applyHighlightsToVisible() {
   ['display-original', 'display-personalized'].forEach(id => {
     const el = document.getElementById(id);
-    if (el && el.style.display !== 'none' && !el.dataset.highlighted) {
+    if (el && el.style.display !== 'none') {
+      // Clear previous highlights by removing all highlight marks
+      const highlights = el.querySelectorAll('.saved-highlight');
+      for (const mark of highlights) {
+        while (mark.firstChild) {
+          mark.parentNode.insertBefore(mark.firstChild, mark);
+        }
+        mark.parentNode.removeChild(mark);
+      }
+      // Normalize to merge adjacent text nodes
+      el.normalize();
+      // Apply fresh highlights
       applyHighlights(el);
-      el.dataset.highlighted = '1';
     }
   });
 }
 
-// Patch showVersion to re-apply after switching
+// Patch showVersion to re-apply highlights after switching versions
 const _origShowVersion = typeof showVersion === 'function' ? showVersion : null;
 if (_origShowVersion) {
   window.showVersion = function(v) {
     _origShowVersion(v);
-    applyHighlightsToVisible();
+    setTimeout(() => applyHighlightsToVisible(), 10);
   };
 }
-
-// Also re-apply after a new insight is saved without reloading
-const _origSaveInsight = saveInsight;
-window.saveInsight = async function() {
-  await _origSaveInsight();
-  SAVED_HIGHLIGHTS.push(lastSelectedText);
-  applyHighlightsToVisible();
-};
 
 applyHighlightsToVisible();
 
