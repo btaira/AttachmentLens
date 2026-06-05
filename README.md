@@ -109,6 +109,21 @@ This is a personal journaling and research tool inspired by attachment theory fr
 - Anthropic API key for AI analysis and Modeled Posts features
 - GitHub Personal Access Token (`repo` scope) for feature request commits
 
+### Environment Variables
+
+Create a `.env` file in the project root (see `.env.example` for a template):
+
+```bash
+# Anthropic API Key - get from https://console.anthropic.com
+ANTHROPIC_API_KEY=sk-ant-...
+
+# GitHub Personal Access Token - create at https://github.com/settings/tokens
+# Use classic token with 'repo' scope (recommended) or fine-grained token with Contents → Read and write
+GITHUB_TOKEN=ghp_... or github_pat_...
+```
+
+**Note:** Environment variables take precedence over database-stored values. This is the recommended way to manage sensitive credentials.
+
 ### Local Installation (Docker) — Recommended
 
 ```bash
@@ -134,11 +149,21 @@ The app starts at `http://localhost:5000`.
 
 ### First Time Setup
 
-1. **Log in** — Visit `http://localhost:5000`; you'll be redirected to the login page. Default admin credentials: `admin` / `admin`
-2. **Import posts** — Open ⚙️ Admin → 📥 Import/Update Posts; follow the steps to run the Facebook console scraper and paste the JSON
-3. **Explore & annotate** — Browse posts, mark favorites, highlight passages
-4. (Optional) **Set up AI** — Add your Anthropic API key on the 🧠 AI Insights page
-5. (Optional) **Set up GitHub integration** — Add a GitHub PAT in ⚙️ Admin → Import/Update Posts to enable feature requests
+1. **Configure environment variables** (optional but recommended)
+   - Copy `.env.example` to `.env` and add your API keys:
+     - `ANTHROPIC_API_KEY` for AI analysis
+     - `GITHUB_TOKEN` for feature requests
+   - Alternatively, you can enter these through the web UI (stored encrypted in the database)
+
+2. **Log in** — Visit `http://localhost:5000`; you'll be redirected to the login page. Default admin credentials: `admin` / `admin`
+
+3. **Import posts** — Open ⚙️ Admin → 📥 Import/Update Posts; follow the steps to run the Facebook console scraper and paste the JSON
+
+4. **Explore & annotate** — Browse posts, mark favorites, highlight passages
+
+5. (Optional) **Set up AI** — If not using environment variables, add your Anthropic API key on the 🧠 AI Insights page
+
+6. (Optional) **Set up GitHub integration** — If not using environment variables, add a GitHub PAT in ⚙️ Admin → Import/Update Posts to enable feature requests
 
 ---
 
