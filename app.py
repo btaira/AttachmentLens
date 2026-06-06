@@ -748,14 +748,20 @@ def add_insight():
     text = (data.get('highlighted_text') or '').strip()
     if not text:
         return jsonify({'error': 'No text'}), 400
-    with get_db() as conn:
+    conn = get_db()
+    try:
         conn.execute(
             'INSERT INTO insights (user_id, post_id, highlighted_text) VALUES (?, ?, ?)',
             (uid, post_id, text)
         )
         conn.commit()
         row = conn.execute('SELECT last_insert_rowid() as id').fetchone()
-    return jsonify({'id': row['id'], 'ok': True})
+        return jsonify({'id': row['id'], 'ok': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/insights/<int:insight_id>/thoughts', methods=['POST'])
@@ -764,20 +770,32 @@ def update_thoughts(insight_id):
     uid = current_user_id()
     data = request.get_json(force=True)
     thoughts = (data.get('thoughts') or '').strip()
-    with get_db() as conn:
+    conn = get_db()
+    try:
         conn.execute('UPDATE insights SET my_thoughts = ? WHERE id = ? AND user_id = ?', (thoughts, insight_id, uid))
         conn.commit()
-    return jsonify({'ok': True})
+        return jsonify({'ok': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/insights/<int:insight_id>/delete', methods=['POST'])
 @login_required
 def delete_insight(insight_id):
     uid = current_user_id()
-    with get_db() as conn:
+    conn = get_db()
+    try:
         conn.execute('DELETE FROM insights WHERE id = ? AND user_id = ?', (insight_id, uid))
         conn.commit()
-    return jsonify({'ok': True})
+        return jsonify({'ok': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/posts/clear', methods=['POST'])
@@ -1018,10 +1036,16 @@ def update_category(post_id):
     category = (data.get('category') or '').strip()
     if not category:
         return jsonify({'error': 'No category'}), 400
-    with get_db() as conn:
+    conn = get_db()
+    try:
         conn.execute('UPDATE posts SET category = ? WHERE id = ?', (category, post_id))
         conn.commit()
-    return jsonify({'ok': True, 'category': category})
+        return jsonify({'ok': True, 'category': category})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/post/<int:post_id>/date', methods=['POST'])
@@ -1029,12 +1053,18 @@ def update_category(post_id):
 def update_date(post_id):
     data = request.get_json(force=True) or {}
     date_label = (data.get('date_label') or '').strip()
-    with get_db() as conn:
+    conn = get_db()
+    try:
         # Mark date as locked when user manually sets it
         conn.execute('UPDATE posts SET date_label = ?, date_label_locked = ? WHERE id = ?',
                      (date_label or None, 1 if date_label else 0, post_id))
         conn.commit()
-    return jsonify({'ok': True, 'date_label': date_label})
+        return jsonify({'ok': True, 'date_label': date_label})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/post/<int:post_id>/tags', methods=['POST'])
@@ -1465,13 +1495,15 @@ def backup():
 @app.route('/restore', methods=['POST'])
 @login_required
 def restore():
+    uid = current_user_id()
     try:
         body = request.get_json(force=True)
         if not body or 'posts' not in body:
             return jsonify({'error': 'Invalid backup file — missing posts key.'}), 400
         imported = 0
         skipped = 0
-        with get_db() as conn:
+        conn = get_db()
+        try:
             for p in body.get('posts', []):
                 text = (p.get('original_text') or '').strip()
                 if not text:
@@ -1481,18 +1513,39 @@ def restore():
                 if exists:
                     skipped += 1
                     continue
+                # Insert post data only (not user preferences)
                 conn.execute('''INSERT INTO posts
                     (original_text, revised_text, date_label, post_url, category, is_revised,
-                     popularity, imported_at, is_favorite, likes, comments, is_read, tags)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                     popularity, imported_at, likes, comments)
+                    VALUES (?,?,?,?,?,?,?,?,?,?)''',
                     (text, p.get('revised_text'), p.get('date_label'), p.get('post_url'),
                      p.get('category', DEFAULT_CATEGORY), p.get('is_revised', 0),
-                     p.get('popularity', 0), p.get('imported_at'), p.get('is_favorite', 0),
-                     p.get('likes', 0), p.get('comments', 0), p.get('is_read', 0),
-                     p.get('tags', '')))
+                     p.get('popularity', 0), p.get('imported_at'),
+                     p.get('likes', 0), p.get('comments', 0)))
+
+                # Get the post ID we just inserted
+                post_id = conn.execute('SELECT last_insert_rowid() as id').fetchone()['id']
+
+                # Insert user preferences if they exist
+                tags_str = p.get('tags', '')
+                if isinstance(tags_str, list):
+                    tags_str = json.dumps(tags_str)
+                elif not tags_str:
+                    tags_str = ''
+
+                conn.execute('''
+                    INSERT INTO user_post_prefs (user_id, post_id, is_read, is_favorite, tags)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (uid, post_id, p.get('is_read', 0), p.get('is_favorite', 0), tags_str))
+
                 imported += 1
             conn.commit()
-        return jsonify({'imported': imported, 'skipped': skipped})
+            return jsonify({'imported': imported, 'skipped': skipped})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'error': str(e)}), 500
+        finally:
+            conn.close()
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
