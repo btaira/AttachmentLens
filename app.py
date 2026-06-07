@@ -1221,17 +1221,32 @@ def toggle_read(post_id):
 @app.route('/stats')
 @login_required
 def stats_page():
+    uid = current_user_id()
     with get_db() as conn:
         cats = conn.execute(
             'SELECT category, COUNT(*) as cnt FROM posts GROUP BY category ORDER BY cnt DESC'
         ).fetchall()
         total = conn.execute('SELECT COUNT(*) as n FROM posts').fetchone()['n']
-        read_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_read = 1').fetchone()['n']
+        # is_read is in user_post_prefs table, not posts
+        read_count = conn.execute(
+            'SELECT COUNT(DISTINCT up.post_id) as n FROM user_post_prefs up WHERE up.user_id = ? AND up.is_read = 1',
+            (uid,)
+        ).fetchone()['n']
         revised_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_revised = 1').fetchone()['n']
-        fav_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_favorite = 1').fetchone()['n']
-        insight_count = conn.execute('SELECT COUNT(*) as n FROM insights').fetchone()['n']
-        analysis_count = conn.execute('SELECT COUNT(*) as n FROM ai_analyses').fetchone()['n']
-        modeled_count = conn.execute('SELECT COUNT(*) as n FROM modeled_posts').fetchone()['n']
+        # is_favorite is also in user_post_prefs
+        fav_count = conn.execute(
+            'SELECT COUNT(DISTINCT up.post_id) as n FROM user_post_prefs up WHERE up.user_id = ? AND up.is_favorite = 1',
+            (uid,)
+        ).fetchone()['n']
+        insight_count = conn.execute(
+            'SELECT COUNT(*) as n FROM insights WHERE user_id = ?', (uid,)
+        ).fetchone()['n']
+        analysis_count = conn.execute(
+            'SELECT COUNT(*) as n FROM ai_analyses WHERE user_id = ?', (uid,)
+        ).fetchone()['n']
+        modeled_count = conn.execute(
+            'SELECT COUNT(*) as n FROM modeled_posts WHERE user_id = ?', (uid,)
+        ).fetchone()['n']
         # Posts imported over time (by imported_at date)
         timeline = [dict(r) for r in conn.execute(
             "SELECT substr(imported_at, 1, 10) as day, COUNT(*) as cnt FROM posts GROUP BY day ORDER BY day"
