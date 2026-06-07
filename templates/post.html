@@ -156,7 +156,55 @@
     border-radius: 20px; color: var(--text); font-size: 12px; width: 120px;
   }
   .tag-add-input:focus { outline: none; border-color: var(--accent); }
+
+  @keyframes slideIn {
+    from { transform: translateX(450px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(450px); opacity: 0; }
+  }
+
+  /* Sticky back button */
+  #sticky-back-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #sticky-back-btn:hover {
+    background: var(--surface2);
+    border-color: var(--accent);
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  @media (max-width: 700px) {
+    #sticky-back-btn {
+      top: 10px;
+      left: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+  }
 </style>
+
+<!-- Sticky Back to Library button (always visible while scrolling) -->
+<a href="/" id="sticky-back-btn">← Back</a>
 
 <!-- Floating Save to Insights button (appears on text selection) -->
 <button id="insight-float-btn" onclick="saveInsight()">✨ Save to Insights</button>
@@ -186,10 +234,15 @@
       <a href="{{ post.post_url }}" target="_blank" style="font-size:13px;color:var(--text)">View on Facebook ↗</a>
       {% endif %}
     </div>
-    <button class="fav-post-btn {{ 'is-fav' if post.is_favorite }}" id="fav-btn-post" onclick="toggleFav({{ post.id }}, this)">
-      <span id="fav-star">{{ '⭐' if post.is_favorite else '☆' }}</span>
-      <span id="fav-label">{{ 'Favorited' if post.is_favorite else 'Add to Favorites' }}</span>
-    </button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="fav-post-btn {{ 'is-fav' if post.is_favorite }}" id="fav-btn-post" onclick="toggleFav({{ post.id }}, this)">
+        <span id="fav-star">{{ '⭐' if post.is_favorite else '☆' }}</span>
+        <span id="fav-label">{{ 'Favorited' if post.is_favorite else 'Add to Favorites' }}</span>
+      </button>
+      <button class="fav-post-btn" id="quick-summary-btn" onclick="quickSummaryFromPost({{ post.id }}, this)" title="Generate AI summary of this post">
+        <span>✨ Quick Summary</span>
+      </button>
+    </div>
   </div>
 
   <!-- Category override + Tags + Read status -->
@@ -665,6 +718,129 @@ async function toggleFav(id, btn) {
     document.getElementById('fav-label').textContent = isFav ? 'Favorited' : 'Add to Favorites';
     btn.classList.toggle('is-fav', isFav);
   }
+}
+
+async function quickSummaryFromPost(postId, btn) {
+  const originalText = btn.textContent;
+  btn.textContent = 'Analyzing...';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch('/quick-summary/' + postId, { method: 'POST' });
+    const data = await resp.json();
+
+    if (data.ok && data.summary) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+      showSummaryPanel(postId, data.summary);
+    } else {
+      btn.textContent = 'Error';
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }, 2000);
+    }
+  } catch (e) {
+    btn.textContent = 'Failed';
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }, 2000);
+  }
+}
+
+function showSummaryPanel(postId, summary) {
+  // Create persistent summary panel
+  const panel = document.createElement('div');
+  panel.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    color: var(--text);
+    padding: 18px 20px;
+    border-radius: 12px;
+    max-width: 450px;
+    font-size: 14px;
+    line-height: 1.7;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+  `;
+
+  // Add close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = `
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  `;
+  closeBtn.onmouseover = () => closeBtn.style.color = 'var(--accent)';
+  closeBtn.onmouseout = () => closeBtn.style.color = 'var(--muted)';
+  closeBtn.onclick = () => {
+    panel.style.animation = 'slideOut 0.3s ease';
+    setTimeout(() => panel.remove(), 300);
+  };
+
+  // Add summary text
+  const text = document.createElement('div');
+  text.style.marginBottom = '12px';
+  text.textContent = summary;
+
+  // Add save button
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save to Insights';
+  saveBtn.style.cssText = `
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  `;
+  saveBtn.onmouseover = () => saveBtn.style.opacity = '0.9';
+  saveBtn.onmouseout = () => saveBtn.style.opacity = '1';
+  saveBtn.onclick = async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    try {
+      const resp = await fetch('/save-summary/' + postId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary: summary })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        saveBtn.textContent = 'Saved! Going to Insights...';
+        setTimeout(() => {
+          window.location.href = '/insights#insight-' + data.id;
+        }, 800);
+      } else {
+        saveBtn.textContent = 'Save to Insights';
+        saveBtn.disabled = false;
+      }
+    } catch (e) {
+      saveBtn.textContent = 'Save to Insights';
+      saveBtn.disabled = false;
+    }
+  };
+
+  panel.appendChild(closeBtn);
+  panel.appendChild(text);
+  panel.appendChild(saveBtn);
+  document.body.appendChild(panel);
 }
 </script>
 {% endblock %}

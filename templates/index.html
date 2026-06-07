@@ -84,6 +84,15 @@
   .rf-chip:hover { border-color: var(--accent); color: var(--text); }
   .rf-chip.active { background: rgba(124,106,247,.15); border-color: var(--accent); color: var(--accent); }
   .unread-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 4px; vertical-align: middle; }
+
+  @keyframes slideIn {
+    from { transform: translateX(450px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(450px); opacity: 0; }
+  }
 </style>
 
 <div class="container">
@@ -115,6 +124,9 @@
       <div class="first-sentence">{{ first_sentence(p.original_text) }}</div>
       <div class="excerpt">{{ p.original_text[first_sentence(p.original_text)|length:] }}</div>
       {% if p.likes %}<div style="margin-top:8px;font-size:12px;color:var(--avoidant)">❤ {{ p.likes }} like{{ 's' if p.likes != 1 }}</div>{% endif %}
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn btn-secondary" onclick="event.preventDefault();quickSummary({{ p.id }}, this)" title="Generate AI summary of this post" style="flex:1;padding:6px 10px;font-size:12px">✨ Quick Summary</button>
+      </div>
       <button class="fav-btn" onclick="event.preventDefault();toggleFav({{ p.id }}, this)" title="Remove favorite" style="position:absolute;top:10px;right:10px">⭐</button>
     </a>
     {% endfor %}
@@ -142,6 +154,7 @@
       <div class="first-sentence">{{ first_sentence(p.original_text) }}</div>
       <div class="excerpt">{{ p.original_text[first_sentence(p.original_text)|length:] }}</div>
       {% if p.likes %}<div style="margin-top:8px;font-size:12px;color:var(--avoidant)">❤ {{ p.likes }} like{{ 's' if p.likes != 1 }}</div>{% endif %}
+      <div style="margin-top:10px"><button class="btn btn-secondary" onclick="event.preventDefault();quickSummary({{ p.id }}, this)" title="Generate AI summary of this post" style="width:100%;padding:6px 10px;font-size:12px">✨ Quick Summary</button></div>
     </a>
     {% endfor %}
   </div>
@@ -342,6 +355,129 @@ function filterRead(filter, chipEl) {
     else if (filter === 'read') row.style.display = row.dataset.read === '1' ? '' : 'none';
     else row.style.display = row.dataset.read === '0' ? '' : 'none';
   });
+}
+
+async function quickSummary(postId, btn) {
+  const originalText = btn.textContent;
+  btn.textContent = 'Analyzing...';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch('/quick-summary/' + postId, { method: 'POST' });
+    const data = await resp.json();
+
+    if (data.ok && data.summary) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+      showSummaryPanel(postId, data.summary);
+    } else {
+      btn.textContent = 'Error';
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }, 2000);
+    }
+  } catch (e) {
+    btn.textContent = 'Failed';
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }, 2000);
+  }
+}
+
+function showSummaryPanel(postId, summary) {
+  // Create persistent summary panel
+  const panel = document.createElement('div');
+  panel.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    color: var(--text);
+    padding: 18px 20px;
+    border-radius: 12px;
+    max-width: 450px;
+    font-size: 14px;
+    line-height: 1.7;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+  `;
+
+  // Add close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = `
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  `;
+  closeBtn.onmouseover = () => closeBtn.style.color = 'var(--accent)';
+  closeBtn.onmouseout = () => closeBtn.style.color = 'var(--muted)';
+  closeBtn.onclick = () => {
+    panel.style.animation = 'slideOut 0.3s ease';
+    setTimeout(() => panel.remove(), 300);
+  };
+
+  // Add summary text
+  const text = document.createElement('div');
+  text.style.marginBottom = '12px';
+  text.textContent = summary;
+
+  // Add save button
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save to Insights';
+  saveBtn.style.cssText = `
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  `;
+  saveBtn.onmouseover = () => saveBtn.style.opacity = '0.9';
+  saveBtn.onmouseout = () => saveBtn.style.opacity = '1';
+  saveBtn.onclick = async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    try {
+      const resp = await fetch('/save-summary/' + postId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary: summary })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        saveBtn.textContent = 'Saved! Going to Insights...';
+        setTimeout(() => {
+          window.location.href = '/insights#insight-' + data.id;
+        }, 800);
+      } else {
+        saveBtn.textContent = 'Save to Insights';
+        saveBtn.disabled = false;
+      }
+    } catch (e) {
+      saveBtn.textContent = 'Save to Insights';
+      saveBtn.disabled = false;
+    }
+  };
+
+  panel.appendChild(closeBtn);
+  panel.appendChild(text);
+  panel.appendChild(saveBtn);
+  document.body.appendChild(panel);
 }
 </script>
 {% endblock %}

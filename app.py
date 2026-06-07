@@ -765,6 +765,96 @@ def add_insight():
         conn.close()
 
 
+@app.route('/quick-summary/<int:post_id>', methods=['POST'])
+@login_required
+def quick_summary(post_id):
+    """Generate AI summary of a post (without saving to insights)"""
+    if not _has_anthropic:
+        return jsonify({'error': 'AI analysis not available'}), 500
+
+    api_key = get_setting('anthropic_api_key', '')
+    if not api_key:
+        return jsonify({'error': 'No API key configured'}), 400
+
+    conn = get_db()
+    try:
+        # Get the post
+        post = conn.execute(
+            'SELECT original_text, category FROM posts WHERE id = ?', (post_id,)
+        ).fetchone()
+        if not post:
+            return jsonify({'error': 'Post not found'}), 404
+
+        # Generate AI summary
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = """You are a compassionate attachment theory expert.
+Analyze the following post about relationships and attachment in 2-3 sentences.
+Focus on what attachment pattern or insight it reveals, and why it might resonate with someone working on their attachment style."""
+
+        message = client.messages.create(
+            model='claude-opus-4-6',
+            max_tokens=300,
+            system=prompt,
+            messages=[{
+                'role': 'user',
+                'content': f"Category: {post['category']}\n\nPost text:\n{post['original_text']}"
+            }]
+        )
+        ai_summary = message.content[0].text
+
+        return jsonify({
+            'ok': True,
+            'post_id': post_id,
+            'summary': ai_summary
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/save-summary/<int:post_id>', methods=['POST'])
+@login_required
+def save_summary(post_id):
+    """Save AI summary as an insight"""
+    uid = current_user_id()
+    data = request.get_json(force=True) or {}
+    summary = (data.get('summary') or '').strip()
+
+    if not summary:
+        return jsonify({'error': 'No summary provided'}), 400
+
+    conn = get_db()
+    try:
+        # Check if identical insight already exists
+        exists = conn.execute(
+            'SELECT id FROM insights WHERE user_id = ? AND post_id = ? AND highlighted_text = ?',
+            (uid, post_id, summary)
+        ).fetchone()
+
+        if exists:
+            return jsonify({'id': exists['id'], 'ok': True, 'message': 'Summary already saved'})
+
+        # Create insight with just the AI summary
+        conn.execute(
+            'INSERT INTO insights (user_id, post_id, highlighted_text) VALUES (?, ?, ?)',
+            (uid, post_id, summary)
+        )
+        conn.commit()
+        insight_row = conn.execute('SELECT last_insert_rowid() as id').fetchone()
+
+        return jsonify({
+            'id': insight_row['id'],
+            'ok': True,
+            'message': 'Summary saved to insights!'
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
 @app.route('/insights/<int:insight_id>/thoughts', methods=['POST'])
 @login_required
 def update_thoughts(insight_id):

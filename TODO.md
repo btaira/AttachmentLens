@@ -1,63 +1,210 @@
-# Attachment Lens — Feature Roadmap
+# AttachmentLens — Feature Roadmap
 
-## High Priority
+**See [ROADMAP_ENHANCED.md](ROADMAP_ENHANCED.md) for the full 6-month vision and strategic direction.**
 
+---
 
-- [ ] **[Requested by Brent, 2026-06-05]** Show number of likes and also read status on Latest 5 posts cards
-- [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
-- [ ] **Duplicate detection** — flag near-duplicate posts (same text, slightly different formatting) before import; keep newest
-- [ ] **[Requested by Brent, 2026-05-31]** Video reading of posts - HeyGen
-- [ ] **Export to PDF** — generate a shareable PDF of AI analyses and highlights to bring to a therapy session or keep for personal records
-- [ ] **Browser extension scraper** — replace the fragile console script with an extension that captures posts as you naturally browse; Facebook changed its DOM in May 2026 and timestamp links no longer expose date metadata — a browser extension can intercept network requests to get reliable post dates
+## 🚀 SPRINT NOW (Next 2 Weeks) — Quick Wins
 
-## Medium Priority
+- [ ] **Keyboard shortcuts** — `j`/`k` navigate posts, `f` favorite, `m` mark read, `h` highlight mode
+- [ ] **Post preview tooltips** — Hover over post title to see first 2-3 sentences
+- [ ] **Infinite scroll on library** — Load 50 posts at a time (replace pagination)
+- [ ] **Color-coded highlights** — Different colors per category (anxious→red, avoidant→blue, secure→green)
+- [ ] **Quick Insight button** — One-click "Generate Insight" on any post card
+- [ ] **Single post PDF export** — Download any post as PDF with annotations
 
-- [ ] **Post date range filtering** — filter the library by date range (e.g. "last 30 days", "this year") using the date_label field
-- [ ] **Comment count accuracy** — for high-engagement posts Facebook shows "View all X comments" but collapses the count; investigate fetching the full comment count via the post URL
-- [ ] **Category confidence score** — show how certain the keyword classifier is; flag posts near the boundary between two styles for manual review
-- [ ] **Attachment style trend chart** — line chart on the Stats page showing which styles Derek posts about most over time, week by week
+---
 
-## Longer Term
+## 🔥 NEXT SPRINT (Weeks 3-6) — Game-Changers
 
-- [ ] **Semantic search** — embed posts with a small model and search by meaning rather than keywords ("posts about fear of abandonment") instead of just substring search
-- [ ] **Therapist export pack** — one-click export of favorites + insights + AI analysis formatted as a structured PDF for use in a session
-- [ ] **Mobile-friendly layout** — the current design works on desktop; a responsive mobile layout would allow browsing and annotating on the go
+### Therapeutic Exports (High Priority)
+- [ ] **PDF Batch Export with TOC**
+  - Export insights collection (all, by category, by date range)
+  - Table of contents, pretty formatting
+  - Include metadata: category, date, reflection
 
-## Already Built ✅
-- [x] **Static Date** After the date for a post has been saved, it should remain permanent. Posts imported with dates are auto-locked and won't be overwritten by future imports.
-- [x] **[Requested by Brent, 2026-06-01]** Bug - after saving to insights, the text should change to golden yellow. Page now reloads after saving to show golden highlight immediately.
-- [x] **[Requested by admin, 2026-05-31]** User customization - 6 different backgrounds, choice of fonts and size of fonts. 🎨 Customize button in nav.
-- [x] Import posts via Facebook scraper (console script)
-- [x] Attachment style auto-classifier
-- [x] Post detail with edit / personalize / word diff
-- [x] Favorites with section on home page
-- [x] Likes & comments tracking and sorting — split into separate columns, center-aligned
-- [x] Highlights / Insights — highlight text on any post, save with personal thoughts
-- [x] AI Insights — Claude analysis of all highlights, editable therapist prompt
-- [x] AI analysis history — searchable, with per-entry reflections that feed future analyses
-- [x] Delete API key button
-- [x] Font size adjuster (🔤 Text), sticky nav, dark theme
-- [x] Modeled Posts — AI-generated posts in Derek Hart's style with attachment style + topic selector
-- [x] Improved Facebook scraper — fallback selectors, longer waits, stale-round patience
-- [x] "Save to Insights" floating button repositioned to left of selected text
-- [x] Current thoughts & feelings field on AI Insights page fed into analysis
-- [x] Personal "My Thoughts & Feelings" per insight weighted heavily in AI analysis
-- [x] Manual category override on post detail page
-- [x] Multi-category tagging (tags field)
-- [x] Read / Unread status toggle and filter
-- [x] Stats & progress dashboard — charts showing category breakdown, read vs unread, import timeline, top posts
-- [x] Backup & restore — export full database to JSON and re-import
-- [x] Bulk re-labeling view — table with quick category dropdown per row (moved to ⚙️ Admin menu)
-- [x] Date capture from Facebook posts — resolves relative timestamps ("3h" → "May 30, 2026"); falls back to today's date for very recent posts where Facebook no longer exposes date metadata in the DOM
-- [x] All Posts sort by newest/oldest using real post date; undated posts sort as recent
-- [x] Admin dropdown in nav — Import Posts and Bulk Label moved to right-side admin menu with emojis
-- [x] **Multi-user support** — login/register system, session-based auth, per-user favorites/insights/analyses/modeled posts, user switcher dropdown in nav, admin role
-- [x] **Session persistence across restarts** — secret key stored in `./data/.secret_key` (Docker volume); logins survive container rebuilds
-- [x] **Route protection** — all routes require login; unauthenticated page loads redirect to login; unauthenticated API calls return JSON 401
-- [x] **Per-user clear data** — Clear My Insights, Clear AI Analysis History, Clear Modeled Posts buttons in Danger Zone (Admin → Import/Update Posts)
-- [x] **GitHub Integration** — store a PAT token, test connection, commit feature requests to the repo's TODO.md
-- [x] **Feature request button** — 💡 Request in nav bar opens a modal; approved requests are committed to GitHub TODO.md
-- [x] **App logo** — two interlocking rings logo displayed in nav bar, login page, and README; 50% larger in nav with increased nav height
-- [x] **Manual date editing on post detail** — pencil button next to date in the post meta row lets you set or correct any post's date inline
-- [x] **Bulk date assignment** — Bulk Re-Label page now has a Date column with a "No date" filter, sortable by date, and checkbox row selection for bulk-applying a date to multiple posts at once
-- [x] **Latest 5 posts sorted by date** — home page "Latest Posts" cards now show the 5 most recently dated posts rather than the 5 most recently imported
+- [ ] **Therapist Session Packet**
+  - One-click export: favorites + insights + analyses
+  - Structured PDF for therapy discussion
+  - Progress summary included
+
+### Analytics & Growth Tracking
+- [ ] **Attachment Style Progress Chart** — Weekly category breakdown over time
+- [ ] **Insight Evolution Timeline** — Interactive timeline of insights created
+- [ ] **Growth Metrics Dashboard** — Insights/week trend, categories explored %, read ratio
+- [ ] **Pattern Detection** — Most common themes, emotional triggers, category co-occurrence
+
+### Smart Features
+- [ ] **Smart Recommendations** — "Based on your insights, these posts match your patterns"
+- [ ] **Emotion Tracking** — Rate mood 1-5 when creating insights; mood heatmap calendar
+- [ ] **Email Insight to Therapist** — One-click email with metadata
+
+---
+
+## 📱 PHASE 3 (Weeks 7-10) — Mobile + Collaboration
+
+### Mobile Experience
+- [ ] **Responsive Mobile Layout** — Mobile-first redesign
+- [ ] **Progressive Web App (PWA)** — Installable, offline-first, push notifications
+- [ ] **Mobile Annotation** — Touch-optimized highlight, voice note reflections
+
+### Therapist Collaboration (Consent-Based)
+- [ ] **Share Insight URL** — Generate read-only shareable link to insight
+- [ ] **Invite Therapist** — Secure token-based invite, granular permissions
+- [ ] **Discussion Thread** — Add notes/feedback per insight
+- [ ] **Session Notes Integration** — Attach notes from therapy sessions
+
+### Advanced AI
+- [ ] **Personal AI Coach** — Chat interface for pattern questions
+- [ ] **Daily Reflection Prompt** — Customizable time, contextual suggestions
+
+---
+
+## 🌟 PHASE 4 (Months 4-6) — Community & Intelligence
+
+### Community Learning (Opt-In, Anonymized)
+- [ ] **Guided Modules** — "Understanding Your Anxious Side", attachment curriculum
+- [ ] **Peer Discussion** — Moderated comments on posts, study circles
+- [ ] **Community Insights** — Anonymized aggregated patterns (research-ready)
+
+### Intelligent Search & Discovery
+- [ ] **Semantic Search** — "Posts about fear of abandonment" (embedding-based)
+- [ ] **Relationship Map** — Interactive graph of themes and connections
+- [ ] **Predictive Patterns** — ML confidence scores on post classification
+
+### Integrations
+- [ ] **Calendar Sync** — Mark therapy sessions, milestones
+- [ ] **Fitness Tracker Integration** — Correlate stress (Oura/Apple Watch) with reading
+- [ ] **Note App Bridge** — Sync insights to Obsidian/Roam/OneNote (bi-directional)
+
+---
+
+## 💎 PREMIUM FEATURES (6+ Months)
+
+### Voice, Video, Gamification
+- [ ] **Voice Journaling** — Record reflections, Whisper transcription, audio library
+- [ ] **Insight Streaks** — Track days with insights, badges, leaderboards
+- [ ] **Attachment Growth Quest** — Narrative-driven quests, character progression
+- [ ] **AI Companion** — Proactive check-ins, celebrates breakthroughs
+
+### Professional Tools (Licensed Therapists)
+- [ ] **Therapist Dashboard** — Multi-client progress view (with consent)
+- [ ] **Clinical Protocols** — Attachment-focused CBT worksheets, EFT exercises
+- [ ] **Outcome Measurement** — GAD-7, PCL-5 integrations, progress scales
+
+### Native Apps
+- [ ] **React Native Mobile App** — iOS + Android, offline-first, biometric unlock
+- [ ] **Apple Watch Integration** — Mood check-in complications, reading streak
+
+---
+
+## 🏗️ Technical Infrastructure (Parallel)
+
+- [ ] **Database Optimization** — Indexes on user_id, post_id, date_label
+- [ ] **Caching Layer** — Redis for insights/analyses
+- [ ] **Search Engine** — Elasticsearch for semantic search
+- [ ] **Async Processing** — Celery + Redis for AI, PDF generation
+- [ ] **Error Monitoring** — Sentry integration
+- [ ] **Analytics** — Privacy-preserving event tracking (Plausible)
+- [ ] **API Documentation** — Prepare for mobile app integration
+
+---
+
+## ✅ ALREADY BUILT
+
+### Core Functionality
+- [x] Import posts via Facebook console scraper
+- [x] Attachment style auto-classifier (keyword-based)
+- [x] Post detail with edit/personalize/word diff
+- [x] Highlight text and save as insights
+- [x] AI-powered pattern analysis (Claude)
+- [x] AI analysis history with feedback tracking
+- [x] AI Modeled Posts (posts in Derek Hart's style)
+- [x] Favorites with home page display
+- [x] Read/Unread toggle and filtering
+- [x] Multi-tag support per post
+- [x] Bulk re-label tool (category + date assignment)
+- [x] Full-text search across library
+
+### User Experience
+- [x] Multi-user support with login/register
+- [x] Per-user favorites, insights, analyses, modeled posts
+- [x] User switcher dropdown in nav
+- [x] Admin role for user management
+- [x] Session persistence across app restarts
+- [x] Dark theme with 6 customizable background themes
+- [x] 3 font families, 3 font sizes (all persist)
+- [x] Zoom levels (80-200%)
+- [x] Sticky nav with admin dropdown
+- [x] Responsive design (desktop/tablet)
+
+### Organization & Tracking
+- [x] Latest 5 posts sorted by date (not import order)
+- [x] Latest 5 favorites displayed in grid (newest left)
+- [x] Like counts on post cards
+- [x] Like/comment metrics captured and sortable
+- [x] Post dates captured from Facebook; manual edit with lock
+- [x] Bulk date assignment for multiple posts
+- [x] Date range filtering in library
+- [x] Category confidence and boundary-case flagging
+- [x] Stats dashboard with charts (category breakdown, read/unread, import timeline, top posts)
+- [x] Static dates (locked after manual set or import)
+
+### Data Management
+- [x] Backup & restore (full database JSON export/import)
+- [x] Personal collections download/restore (ZIP: insights, analyses, modeled posts)
+- [x] Export all collections ZIP (one-click backup/restore)
+- [x] Per-user data clearing (danger zone)
+- [x] Duplicate detection on restore (skip existing insights)
+
+### GitHub Integration
+- [x] Feature request button (💡 Request)
+- [x] Request modal with PR title/description
+- [x] GitHub PAT storage and validation
+- [x] Feature requests committed to TODO.md
+- [x] Settings page for API management
+
+### UI Refinements
+- [x] Floating "Save to Insights" button on text selection
+- [x] Golden highlight (#c8a200) for saved insights
+- [x] Category badges with attachment style colors
+- [x] "Read" / "Unread" status badges
+- [x] Revised/personalized post badge
+- [x] Popularity metrics in cards
+- [x] Mobile-optimized sort/filter bars
+
+### Recent Fixes & Polish
+- [x] Read/unread toggle working reliably (database commit fix)
+- [x] Insights save persisting correctly (database transaction fix)
+- [x] Restore function separating post data from user preferences (no schema errors)
+- [x] Favorites section displaying like post cards with like counts
+- [x] All endpoints using proper try/finally transaction handling
+
+---
+
+## 📌 Backlog Notes
+
+- **Browser Extension Scraper:** Facebook DOM changes in May 2026 broke timestamp extraction; browser extension can intercept network requests for reliable dates
+- **Duplicate Detection:** Flag near-duplicates before import (same text, different formatting)
+- **Comment Count Accuracy:** High-engagement posts collapse counts; investigate full count via post URL
+- **Semantic Search:** Embed posts with small model; search by meaning not keywords
+- **Therapist Export Pack:** Multi-format (PDF, Markdown, JSON) with structured templates
+- **Mobile App:** React Native for iOS/Android with offline-first sync and biometric unlock
+- **Community Features:** Moderated discussion, study circles, anonymized insights library
+
+---
+
+## 🎯 Success Metrics
+
+Track these to validate feature impact:
+- Daily active users, insights created/week, sessions/week
+- Average reflection length, insights before first analysis
+- Category coverage %, mood trend improvement
+- PDF exports sent, therapist collaborations active
+- Keyboard shortcut adoption %, feature request volume
+
+---
+
+**For detailed strategic roadmap, see [ROADMAP_ENHANCED.md](ROADMAP_ENHANCED.md) — covers 6-month vision, technical architecture, and phased rollout plan.**
+
+Made with care for self-reflection and healing. 💜
