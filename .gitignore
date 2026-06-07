@@ -53,6 +53,10 @@ tmp/
 temp/
 *.tmp
 
+# Manual test runs / artifacts (keep templates in `tests/` committed)
+test_runs/
+test-results/
+
 # Local secrets and keys
 .secret_key
 data/.secret_key
