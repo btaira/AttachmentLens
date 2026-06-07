@@ -1,91 +1,157 @@
 @echo off
-REM AttachmentLens Test Runner for Windows
-REM Runs all functional test suites and generates reports
+REM AttachmentLens Complete Test Suite Runner
+REM Run this from the project root directory in VS Code terminal
+REM This will run all three test suites and generate comprehensive reports
 
 setlocal enabledelayedexpansion
 
-set "SCRIPT_DIR=%~dp0"
-for %%A in ("%SCRIPT_DIR%\..\..") do set "PROJECT_ROOT=%%~fA"
-set "TEST_RUNS_DIR=%PROJECT_ROOT%\test_runs"
+REM Change to project root directory
+cd /d "%~dp0..\.."
 
-echo ============================================================
-echo AttachmentLens Functional Test Suite
-echo ============================================================
+REM Set colors for output (if supported)
+cls
+color 0F
+
+echo.
+echo ================================================================================
+echo AttachmentLens - Complete Test Suite Runner
+echo ================================================================================
+echo.
+echo This script will:
+echo   1. Start Flask app (if not running)
+echo   2. Run Comprehensive Tests (22 tests)
+echo   3. Run Extended Tests (27 tests)
+echo   4. Run User Flow Tests (70+ scenarios)
+echo   5. Generate final report
+echo   6. Display results
+echo.
+echo ================================================================================
 echo.
 
-REM Create test_runs directory if needed
-if not exist "%TEST_RUNS_DIR%" (
-    mkdir "%TEST_RUNS_DIR%"
-    echo [OK] Created test_runs directory
-)
-
-REM Check if -NoApp flag is set
-set "NO_APP=0"
-if "%~1"=="-NoApp" set "NO_APP=1"
-if "%~1"=="--no-app" set "NO_APP=1"
-
-REM Start Flask app if requested
-if "%NO_APP%"=="0" (
-    echo [INFO] Starting Flask app...
-    echo [INFO] Flask will run in background
-    echo.
-
-    REM Start Flask in background
-    cd /d "%PROJECT_ROOT%"
-    start "Flask Server" python app.py
-
-    REM Wait for Flask to start
+REM Check if Flask is already running
+echo [INFO] Checking if Flask is running...
+netstat -ano | findstr :5000 >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] Flask not running, starting Flask app...
+    start "Flask App" python app.py
     timeout /t 3 /nobreak
-
     echo [OK] Flask app started
-    echo.
+) else (
+    echo [OK] Flask is already running on port 5000
 )
 
-REM Run comprehensive tests
-echo [1/2] Running comprehensive test suite ^(22 tests^)...
-echo       Location: %SCRIPT_DIR%comprehensive_test.py
+echo.
+echo ================================================================================
+echo Running Test Suites
+echo ================================================================================
 echo.
 
-cd /d "%SCRIPT_DIR%"
-python comprehensive_test.py
+REM Test suite 1: Comprehensive
+echo [1/3] Running Comprehensive Test Suite (22 tests)...
+echo       Location: tests\runners\comprehensive_test.py
+echo.
+
+python tests\runners\comprehensive_test.py
 if errorlevel 1 (
-    echo [ERROR] Comprehensive tests failed
+    echo [ERROR] Comprehensive tests failed with exit code !errorlevel!
+) else (
+    echo [SUCCESS] Comprehensive tests completed
 )
 
 echo.
-echo [2/2] Running extended test suite ^(27 tests^)...
-echo       Location: %SCRIPT_DIR%extended_tests.py
+echo ================================================================================
 echo.
 
-python extended_tests.py
+REM Test suite 2: Extended
+echo [2/3] Running Extended Test Suite (27 tests)...
+echo       Location: tests\runners\extended_tests.py
+echo.
+
+python tests\runners\extended_tests.py
 if errorlevel 1 (
-    echo [ERROR] Extended tests failed
+    echo [ERROR] Extended tests failed with exit code !errorlevel!
+) else (
+    echo [SUCCESS] Extended tests completed
 )
 
 echo.
-echo ============================================================
+echo ================================================================================
+echo.
+
+REM Test suite 3: User Flows
+echo [3/3] Running User Flow Test Suite (70+ scenarios)...
+echo       Location: tests\runners\user_flow_tests.py
+echo.
+
+python tests\runners\user_flow_tests.py
+if errorlevel 1 (
+    echo [ERROR] User flow tests failed with exit code !errorlevel!
+) else (
+    echo [SUCCESS] User flow tests completed
+)
+
+echo.
+echo ================================================================================
 echo Test Execution Complete
-echo ============================================================
+echo ================================================================================
 echo.
-echo Test Results:
-echo   Location: %TEST_RUNS_DIR%
+
+REM Check for test results
+echo [INFO] Test results location: test_runs\
 echo.
+
 echo Generated Files:
-for %%F in ("%TEST_RUNS_DIR%\TEST_RUN_*.md") do (
-    echo   - %%~nxF
+if exist "test_runs\TEST_RUN_2026-06-07.md" (
+    echo   - TEST_RUN_2026-06-07.md
 )
-echo   - TESTS_FINAL_REPORT.md
-echo   - TEST_EXECUTION_SUMMARY.md
+if exist "test_runs\TESTS_FINAL_REPORT.md" (
+    echo   - TESTS_FINAL_REPORT.md
+)
+if exist "test_runs\TEST_EXECUTION_SUMMARY.md" (
+    echo   - TEST_EXECUTION_SUMMARY.md
+)
+if exist "test_runs\TEST_RUN_COMPREHENSIVE_2026-06-07.md" (
+    echo   - TEST_RUN_COMPREHENSIVE_2026-06-07.md
+)
+
+echo.
+echo Summary:
+echo --------
+echo View results in: test_runs\ folder
+echo Quick check: test_runs\TESTS_FINAL_REPORT.md
+echo Detailed:   test_runs\TEST_RUN_COMPREHENSIVE_2026-06-07.md
 echo.
 
-REM Stop Flask if we started it
-if "%NO_APP%"=="0" (
-    echo [INFO] Stopping Flask app...
-    taskkill /FI "WINDOWTITLE eq Flask Server" /T /F >nul 2>&1
-    echo [OK] Flask app stopped
+echo ================================================================================
+echo Test Suite Complete!
+echo ================================================================================
+echo.
+
+REM Ask if user wants to view results
+echo Options:
+echo   [1] View TESTS_FINAL_REPORT.md
+echo   [2] View comprehensive report
+echo   [3] Open test_runs folder
+echo   [4] Exit
+echo.
+
+set /p choice="Select option (1-4): "
+
+if "!choice!"=="1" (
+    if exist "test_runs\TESTS_FINAL_REPORT.md" (
+        type test_runs\TESTS_FINAL_REPORT.md | more
+    )
+) else if "!choice!"=="2" (
+    if exist "test_runs\TEST_RUN_COMPREHENSIVE_2026-06-07.md" (
+        type test_runs\TEST_RUN_COMPREHENSIVE_2026-06-07.md | more
+    )
+) else if "!choice!"=="3" (
+    start explorer test_runs
+) else (
+    echo Exiting...
 )
 
 echo.
-echo Run tests again with: run_all_tests.bat
+echo Next run: RUN_ALL_TESTS.bat
 echo.
 pause

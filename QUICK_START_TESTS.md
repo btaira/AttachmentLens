@@ -6,16 +6,19 @@
 
 ## ⚡ 30-Second Quick Start
 
-### Windows (PowerShell)
-```powershell
-cd tests/runners
-.\run_all_tests.ps1
+### Windows (Command Prompt) - Quickest ⭐
+```cmd
+tests\runners\QUICK_TEST.bat
 ```
 
-### Windows (Command Prompt)
+### Windows (Full Featured)
 ```cmd
-cd tests\runners
-run_all_tests.bat
+tests\runners\RUN_ALL_TESTS.bat
+```
+
+### Windows (PowerShell)
+```powershell
+.\tests\runners\RUN_TESTS.ps1
 ```
 
 ### Linux/Mac (Manual)
@@ -44,15 +47,21 @@ After running tests:
 ```
 tests/
 ├── functional/              (Test case definitions)
-│   └── FUNCTIONAL_TEST_CASES.md
+│   ├── FUNCTIONAL_TEST_CASES.md
+│   └── USER_FLOW_TEST_CASES.md      (NEW - End-to-end flows)
 └── runners/                 (Test execution scripts)
     ├── comprehensive_test.py
     ├── extended_tests.py
+    ├── user_flow_tests.py           (NEW - Flow testing)
     ├── run_all_tests.ps1    ← Run this
     └── run_all_tests.bat    ← Or this
 ```
 
 **Results go to**: `test_runs/` (created automatically)
+
+### Test Case Documents
+- **FUNCTIONAL_TEST_CASES.md** - Individual feature test cases (49 tests)
+- **USER_FLOW_TEST_CASES.md** - End-to-end user journey tests (70+ scenarios)
 
 ---
 
@@ -67,6 +76,7 @@ tests/
 
 ## ✅ Test Coverage
 
+### Functional Test Cases (49 tests)
 | Category | Tests | Status |
 |----------|-------|--------|
 | Authentication | 8 | ✓ 100% |
@@ -77,7 +87,21 @@ tests/
 | Export & Backup | 5 | ⚠ 80% |
 | Multi-User | 2 | ✓ 100% |
 | UI Features | 3 | ✓ 100% |
-| **TOTAL** | **49** | **98%** |
+| **SUBTOTAL** | **49** | **98%** |
+
+### User Flow Test Cases (70+ scenarios)
+| Flow | Steps | Scenarios | Status |
+|------|-------|-----------|--------|
+| Post Import | 5 | 10+ | Ready |
+| Insights Creation | 5 | 11+ | Ready |
+| AI Analysis | 8 | 12+ | Ready |
+| Multi-User Collab | 6 | 11+ | Ready |
+| Post Organization | 8 | 13+ | Ready |
+| AI Generation | 5 | 10+ | Ready |
+| Export & Backup | 9 | 14+ | Ready |
+| **TOTAL** | **46** | **70+** | ✓ |
+
+**Combined Total**: 119+ test scenarios across all categories
 
 ---
 
@@ -170,6 +194,25 @@ Total Duration: ~5 minutes
 
 ---
 
+## 🔄 User Flow Tests
+
+User flow tests cover **complete end-to-end workflows**:
+
+1. **Post Import Flow** - Import posts, categorize, manage
+2. **Insights Creation** - Highlight text, create insights, add thoughts
+3. **AI Analysis** - Configure API, run analysis, save feedback
+4. **Multi-User Collab** - Create users, switch, verify isolation
+5. **Post Organization** - Organize posts by metadata, search, filter
+6. **AI Generation** - Generate posts in personal style, manage
+7. **Export & Backup** - Export collections, backup, restore
+
+**Run user flow tests**:
+```powershell
+python tests/runners/user_flow_tests.py
+```
+
+Or use the main runner which includes them.
+
 ## 💡 Tips
 
 - **First run?** Use the runner script (auto-starts Flask)
@@ -177,7 +220,9 @@ Total Duration: ~5 minutes
   ```powershell
   .\run_all_tests.ps1 -NoApp
   ```
+- **User flows only?** Run `python tests/runners/user_flow_tests.py`
 - **Need help?** Check `tests/runners/README.md` for troubleshooting
+- **Full test guide?** See `tests/functional/USER_FLOW_TEST_CASES.md`
 
 ---
 

@@ -54,18 +54,25 @@ if (-not $NoApp) {
 }
 
 # Run comprehensive tests
-Write-Host "[1/2] Running comprehensive test suite (22 tests)..."
+Write-Host "[1/3] Running comprehensive test suite (22 tests)..."
 Write-Host "      Location: $ScriptDir\comprehensive_test.py"
 Write-Host ""
 
 $CompResult = python (Join-Path $ScriptDir "comprehensive_test.py")
 
 Write-Host ""
-Write-Host "[2/2] Running extended test suite (27 tests)..."
+Write-Host "[2/3] Running extended test suite (27 tests)..."
 Write-Host "      Location: $ScriptDir\extended_tests.py"
 Write-Host ""
 
 $ExtResult = python (Join-Path $ScriptDir "extended_tests.py")
+
+Write-Host ""
+Write-Host "[3/3] Running user flow test suite (7 flows, 70+ scenarios)..."
+Write-Host "      Location: $ScriptDir\user_flow_tests.py"
+Write-Host ""
+
+$FlowResult = python (Join-Path $ScriptDir "user_flow_tests.py")
 
 Write-Host ""
 Write-Host "=" * 60
