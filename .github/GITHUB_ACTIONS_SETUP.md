@@ -11,21 +11,17 @@ AttachmentLens now has automated CI/CD testing via GitHub Actions. Tests run aut
 
 ---
 
-## Workflows
+## Workflow
 
-### 1. Windows Tests (`tests.yml`)
-- **Runs on**: `windows-latest`
+### Single Optimized Workflow (`tests-linux.yml`)
+- **Runs on**: `ubuntu-latest` (Linux)
 - **When**: Every push to main/develop, PRs, daily at 2 AM UTC
-- **Cost**: Higher (Windows runners cost more)
-- **Use case**: Full environment testing
+- **Cost**: FREE for public repos
+- **Speed**: ~2-3 minutes
+- **Coverage**: All 74 tests (comprehensive, extended, user flows)
+- **Use case**: Full CI/CD automation, PR feedback
 
-### 2. Linux Tests (`tests-linux.yml`)
-- **Runs on**: `ubuntu-latest`
-- **When**: Same as Windows
-- **Cost**: Lower (Linux runners are free tier friendly)
-- **Use case**: Fast CI feedback
-
-**Recommendation**: Use Linux for CI (faster, cheaper), Windows for detailed testing.
+This is the only workflow needed for fast, cost-effective continuous integration.
 
 ---
 

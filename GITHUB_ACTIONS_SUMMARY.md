@@ -7,19 +7,14 @@
 
 ## What's Been Created
 
-### 🔧 Workflow Files (Ready to Use)
+### 🔧 Workflow Files (Single Optimized Workflow)
 
-#### 1. `.github/workflows/tests-linux.yml` ⭐ **Recommended**
-- **Runs on**: Ubuntu Linux (free tier)
+#### `.github/workflows/tests-linux.yml` ⭐ **Only Workflow**
+- **Runs on**: Ubuntu Linux
 - **Speed**: ~2-3 minutes
 - **Cost**: FREE for public repos
-- **Best for**: Every-push testing, PRs, CI/CD gate
-
-#### 2. `.github/workflows/tests.yml`
-- **Runs on**: Windows (windows-latest)
-- **Speed**: ~3-5 minutes
-- **Cost**: Uses quota (~6-10 min per run)
-- **Best for**: Detailed testing, release validation
+- **Best for**: Every push, every PR, daily schedule
+- **Coverage**: All 74 tests (comprehensive, extended, user flows)
 
 ### 📚 Documentation (Complete)
 

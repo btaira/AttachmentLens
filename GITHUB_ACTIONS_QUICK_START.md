@@ -7,15 +7,13 @@
 ## 30-Second Setup
 
 ### 1. Files Already Created
-✅ `.github/workflows/tests.yml` - Windows runner  
-✅ `.github/workflows/tests-linux.yml` - Linux runner  
+✅ `.github/workflows/tests-linux.yml` - Single optimized workflow  
 ✅ `.github/GITHUB_ACTIONS_SETUP.md` - Full documentation  
 
-### 2. Push to GitHub
+### 2. Already Pushed to GitHub
 ```bash
-git add .github/
-git commit -m "Add GitHub Actions CI/CD"
-git push origin main
+Workflows committed and pushed ✓
+Ready to execute on every push
 ```
 
 ### 3. View Tests Running
@@ -23,7 +21,7 @@ git push origin main
 2. Click "Actions" tab
 3. Watch workflow execute
 
-**That's it! Tests now run automatically on every push.**
+**Tests now run automatically on every push (single workflow, ~3 minutes)**
 
 ---
 
