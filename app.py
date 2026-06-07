@@ -476,8 +476,8 @@ def index():
             'SELECT category, COUNT(*) as cnt FROM posts GROUP BY category ORDER BY cnt DESC'
         ).fetchall()
         total = conn.execute('SELECT COUNT(*) as n FROM posts').fetchone()['n']
-        favorites = conn.execute(
-            f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} WHERE up.is_favorite = 1 ORDER BY p.category, p.popularity DESC'
+        all_favorites = conn.execute(
+            f'SELECT {PREFS_COLS} FROM posts p {PREFS_JOIN} WHERE up.is_favorite = 1 ORDER BY p.id DESC'
         ).fetchall()
     def parse_post_date(p):
         dl = p['date_label'] or ''
@@ -490,6 +490,7 @@ def index():
         return datetime(1970, 1, 1)
 
     latest = sorted(all_posts_for_latest, key=parse_post_date, reverse=True)[:5]
+    favorites = sorted(all_favorites, key=parse_post_date, reverse=True)[:5]
 
     return render_template(
         'index.html',

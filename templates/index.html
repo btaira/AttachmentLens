@@ -99,31 +99,25 @@
     {% if search %}<a href="/" class="btn btn-secondary" style="padding:10px 14px;font-size:14px">✕ Clear</a>{% endif %}
   </form>
 
-  <!-- Favorites section -->
+  <!-- Favorites (Latest 5) -->
   {% if favorites and not search %}
-  <div class="fav-section" id="favorites">
-    <div class="section-title">⭐ Favorites</div>
-    {% set ns = namespace(current_cat='') %}
+  <div class="section-title">⭐ Favorite Posts</div>
+  <div class="latest-grid">
     {% for p in favorites %}
-      {% if p.category != ns.current_cat %}
-        {% if ns.current_cat != '' %}</div></div>{% endif %}
-        {% set ns.current_cat = p.category %}
-        {% set cat_key = p.category.split('/')[0].strip().split(' ')[0] %}
-        <div class="fav-group">
-          <div class="fav-group-title"><span class="cat-badge cat-{{ cat_key }}" style="font-size:11px">{{ p.category }}</span></div>
-          <div class="fav-cards">
-      {% endif %}
-      <a href="/post/{{ p.id }}" class="post-card" style="position:relative">
-        <div class="meta">
+    <a href="/post/{{ p.id }}" class="post-card" style="position:relative">
+      <div class="meta" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+          {% set cat_key = p.category.split('/')[0].strip().split(' ')[0] %}
+          <span class="cat-badge cat-{{ cat_key }}">{{ p.category }}</span>
           {% if p.date_label %}<span class="date">{{ p.date_label }}</span>{% endif %}
-          {% if p.popularity and p.popularity > 0 %}<span class="pop">👍 {{ p.popularity }}</span>{% endif %}
         </div>
-        <div class="first-sentence">{{ first_sentence(p.original_text) }}</div>
-        <div class="excerpt">{{ p.original_text[first_sentence(p.original_text)|length:] }}</div>
-        <button class="fav-btn" onclick="event.preventDefault();toggleFav({{ p.id }}, this)" title="Remove favorite" style="position:absolute;top:10px;right:10px">⭐</button>
-      </a>
+      </div>
+      <div class="first-sentence">{{ first_sentence(p.original_text) }}</div>
+      <div class="excerpt">{{ p.original_text[first_sentence(p.original_text)|length:] }}</div>
+      {% if p.likes %}<div style="margin-top:8px;font-size:12px;color:var(--avoidant)">❤ {{ p.likes }} like{{ 's' if p.likes != 1 }}</div>{% endif %}
+      <button class="fav-btn" onclick="event.preventDefault();toggleFav({{ p.id }}, this)" title="Remove favorite" style="position:absolute;top:10px;right:10px">⭐</button>
+    </a>
     {% endfor %}
-    {% if ns.current_cat != '' %}</div></div>{% endif %}
   </div>
   {% endif %}
 
@@ -147,6 +141,7 @@
       </div>
       <div class="first-sentence">{{ first_sentence(p.original_text) }}</div>
       <div class="excerpt">{{ p.original_text[first_sentence(p.original_text)|length:] }}</div>
+      {% if p.likes %}<div style="margin-top:8px;font-size:12px;color:var(--avoidant)">❤ {{ p.likes }} like{{ 's' if p.likes != 1 }}</div>{% endif %}
     </a>
     {% endfor %}
   </div>
