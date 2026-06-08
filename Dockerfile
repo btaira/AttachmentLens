@@ -1,21 +1,21 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# Copy app code
-COPY app.py .
-COPY templates/ templates/
-COPY static/ static/
-
-# Create volume mount point for persistent data
-VOLUME /app/data
+# Copy application
+COPY . .
 
 # Expose port
 EXPOSE 5000
 
-# Run app
-CMD ["python", "app.py"]
+# Run with Gunicorn (proper WSGI server instead of Flask dev server)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120", "app:app"]
