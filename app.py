@@ -966,21 +966,28 @@ def view_stats():
 
         total = conn.execute('SELECT COUNT(*) as n FROM posts').fetchone()['n']
 
-        read_count = conn.execute(
+        read_result = conn.execute(
             'SELECT COUNT(DISTINCT up.post_id) as n FROM user_post_prefs up WHERE up.user_id = ? AND up.is_read = 1',
             (uid,)
-        ).fetchone()['n'] or 0
+        ).fetchone()
+        read_count = read_result['n'] if read_result else 0
 
         revised_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_revised = 1').fetchone()['n']
 
-        fav_count = conn.execute(
+        fav_result = conn.execute(
             'SELECT COUNT(DISTINCT up.post_id) as n FROM user_post_prefs up WHERE up.user_id = ? AND up.is_favorite = 1',
             (uid,)
-        ).fetchone()['n'] or 0
+        ).fetchone()
+        fav_count = fav_result['n'] if fav_result else 0
 
-        insight_count = conn.execute('SELECT COUNT(*) as n FROM insights WHERE user_id = ?', (uid,)).fetchone()['n']
-        analysis_count = conn.execute('SELECT COUNT(*) as n FROM ai_analyses WHERE user_id = ?', (uid,)).fetchone()['n']
-        modeled_count = conn.execute('SELECT COUNT(*) as n FROM modeled_posts WHERE user_id = ?', (uid,)).fetchone()['n']
+        insight_result = conn.execute('SELECT COUNT(*) as n FROM insights WHERE user_id = ?', (uid,)).fetchone()
+        insight_count = insight_result['n'] if insight_result else 0
+
+        analysis_result = conn.execute('SELECT COUNT(*) as n FROM ai_analyses WHERE user_id = ?', (uid,)).fetchone()
+        analysis_count = analysis_result['n'] if analysis_result else 0
+
+        modeled_result = conn.execute('SELECT COUNT(*) as n FROM modeled_posts WHERE user_id = ?', (uid,)).fetchone()
+        modeled_count = modeled_result['n'] if modeled_result else 0
 
         timeline = [dict(r) for r in conn.execute(
             "SELECT substr(imported_at, 1, 10) as day, COUNT(*) as cnt FROM posts GROUP BY day ORDER BY day"
