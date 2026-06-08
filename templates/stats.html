@@ -96,10 +96,12 @@
     <a href="/post/{{ p.id }}" style="text-decoration:none;color:inherit;display:block">
       <div class="top-row">
         <div class="top-rank">#{{ loop.index }}</div>
-        <div class="top-text">{{ p.original_text[:160] }}…</div>
+        <div class="top-text">{{ (p.original_text or '')[:160] }}…</div>
         <div class="top-meta">
-          {% set cat_key = p.category.split('/')[0].strip().split(' ')[0] %}
-          <span class="cat-badge cat-{{ cat_key }}" style="font-size:10px">{{ p.category }}</span><br>
+          {% if p.category %}
+            {% set cat_key = p.category.split('/')[0].strip().split(' ')[0] %}
+            <span class="cat-badge cat-{{ cat_key }}" style="font-size:10px">{{ p.category }}</span><br>
+          {% endif %}
           <span style="color:var(--avoidant)">👍 {{ p.likes or 0 }}</span>
           <span style="color:var(--muted)"> · 💬 {{ p.comments or 0 }}</span>
         </div>

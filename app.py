@@ -1227,14 +1227,12 @@ def stats_page():
             'SELECT category, COUNT(*) as cnt FROM posts GROUP BY category ORDER BY cnt DESC'
         ).fetchall()
         total = conn.execute('SELECT COUNT(*) as n FROM posts').fetchone()['n']
-        # is_read is in user_post_prefs table, not posts
         read_result = conn.execute(
             'SELECT COUNT(DISTINCT up.post_id) as n FROM user_post_prefs up WHERE up.user_id = ? AND up.is_read = 1',
             (uid,)
         ).fetchone()
         read_count = read_result['n'] if read_result else 0
         revised_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_revised = 1').fetchone()['n']
-        # is_favorite is also in user_post_prefs
         fav_result = conn.execute(
             'SELECT COUNT(DISTINCT up.post_id) as n FROM user_post_prefs up WHERE up.user_id = ? AND up.is_favorite = 1',
             (uid,)
@@ -1252,11 +1250,9 @@ def stats_page():
             'SELECT COUNT(*) as n FROM modeled_posts WHERE user_id = ?', (uid,)
         ).fetchone()
         modeled_count = modeled_result['n'] if modeled_result else 0
-        # Posts imported over time (by imported_at date)
         timeline = [dict(r) for r in conn.execute(
             "SELECT substr(imported_at, 1, 10) as day, COUNT(*) as cnt FROM posts GROUP BY day ORDER BY day"
         ).fetchall()]
-        # Top posts by popularity
         top_posts = conn.execute(
             'SELECT id, original_text, category, popularity, likes, comments FROM posts ORDER BY popularity DESC LIMIT 10'
         ).fetchall()
