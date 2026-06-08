@@ -1257,6 +1257,7 @@ def stats_page():
             'SELECT id, original_text, category, popularity, likes, comments FROM posts ORDER BY popularity DESC LIMIT 10'
         ).fetchall()
         cats = [dict(r) for r in cats]
+
     return render_template('stats.html',
         cats=cats, total=total, read_count=read_count,
         revised_count=revised_count, fav_count=fav_count,
