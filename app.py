@@ -796,7 +796,7 @@ Analyze the following post about relationships and attachment in 2-3 sentences.
 Focus on what attachment pattern or insight it reveals, and why it might resonate with someone working on their attachment style."""
 
         message = client.messages.create(
-            model='claude-opus-4-6',
+            model='claude-opus-4-8',
             max_tokens=300,
             system=prompt,
             messages=[{
@@ -1089,7 +1089,7 @@ def ai_analyze():
     try:
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
-            model='claude-opus-4-6',
+            model='claude-opus-4-8',
             max_tokens=2000,
             system=prompt,
             messages=[{'role': 'user', 'content': user_message}]
@@ -1726,7 +1726,7 @@ def modeled_posts_generate():
     try:
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
-            model='claude-opus-4-6',
+            model='claude-opus-4-8',
             max_tokens=1000,
             system=system_prompt,
             messages=[{'role': 'user', 'content': user_msg}]
