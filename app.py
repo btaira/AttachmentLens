@@ -972,7 +972,8 @@ def view_stats():
         ).fetchone()
         read_count = read_result['n'] if read_result else 0
 
-        revised_count = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_revised = 1').fetchone()['n']
+        revised_result = conn.execute('SELECT COUNT(*) as n FROM posts WHERE is_revised = 1').fetchone()
+        revised_count = revised_result['n'] if revised_result else 0
 
         fav_result = conn.execute(
             'SELECT COUNT(DISTINCT up.post_id) as n FROM user_post_prefs up WHERE up.user_id = ? AND up.is_favorite = 1',
