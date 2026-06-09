@@ -3,16 +3,19 @@
 ## ⚡ Fastest Way to Get Started
 
 ### On Windows:
-1. **Double-click `rebuild-docker.bat`** in the project folder
-2. Wait for the build to complete (1-2 minutes on first run)
-3. Browser opens automatically to http://localhost:5000
-4. Login with: `admin` / `admin`
+1. **Navigate to the `scripts/` folder**
+2. **Double-click `rebuild-docker.bat`**
+3. Wait for the build to complete (1-2 minutes on first run)
+4. Browser opens automatically to http://localhost:5000
+5. Login with: `admin` / `admin`
 
 That's it! ✓
 
 ---
 
 ## What Each Script Does
+
+Located in `scripts/` folder:
 
 | Script | Purpose |
 |--------|---------|
@@ -26,7 +29,7 @@ That's it! ✓
 
 ## Command Line Usage
 
-If you prefer the command line:
+If you prefer the command line, from the project root:
 
 ### First Time (with build):
 ```powershell
@@ -60,7 +63,7 @@ docker-compose logs -f
 2. Install it
 3. Launch Docker Desktop
 4. Wait for it to show "Docker is running"
-5. Then run `rebuild-docker.bat`
+5. Then run `scripts/rebuild-docker.bat`
 
 ---
 
@@ -103,7 +106,7 @@ ports:
 Then access at: http://localhost:5001
 
 ### Container won't start?
-Run `logs-docker.bat` to see error messages
+Run `scripts/logs-docker.bat` to see error messages
 
 ### Out of disk space?
 ```powershell
@@ -114,7 +117,7 @@ docker system prune -a
 
 ## Tips
 
-- **Development**: Run the batch files, they handle everything
+- **Development**: Run the batch files from `scripts/`, they handle everything
 - **Logs**: Keep `logs-docker.bat` running in another window to see what's happening
 - **Database**: Edit `posts.db` with any SQLite viewer
 - **Performance**: If slow, give Docker more memory (Settings > Resources > Memory)
@@ -140,7 +143,7 @@ Browser Access: http://localhost:5000
 
 ## Next Steps
 
-1. ✅ Start the container with `rebuild-docker.bat`
+1. ✅ Run `scripts/rebuild-docker.bat`
 2. ✅ Open http://localhost:5000
 3. ✅ Login with admin/admin
 4. ✅ Check out the Stats page at /stats
