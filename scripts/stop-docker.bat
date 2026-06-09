@@ -1,8 +1,6 @@
 @echo off
-REM Stop AttachmentLens Docker container
-
+cd /d "%~dp0\.."
 echo Stopping AttachmentLens...
-docker-compose down
-
+docker compose down
 echo Done.
 pause

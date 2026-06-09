@@ -1,20 +1,7 @@
 @echo off
-REM Start AttachmentLens Docker container
-
+cd /d "%~dp0\.."
 echo Starting AttachmentLens...
-docker-compose up -d
-
-timeout /t 3 /nobreak
-
-docker ps | find "attachmentlens" >/dev/null
-if errorlevel 1 (
-    echo ERROR: Container failed to start
-    docker-compose logs
-    pause
-    exit /b 1
-)
-
+docker compose up -d
 echo.
-echo AttachmentLens is running at http://localhost:5000
-echo.
+echo Done! App is at http://localhost:5000
 pause

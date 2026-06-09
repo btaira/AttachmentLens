@@ -1,4 +1,3 @@
 @echo off
-REM View AttachmentLens Docker logs
-
-docker-compose logs -f
+cd /d "%~dp0\.."
+docker compose logs -f
