@@ -66,9 +66,6 @@ This is a personal journaling and research tool inspired by attachment theory fr
 - Full-text search across your library
 - Edit and personalize post content with word-diff view
 
-📊 **Stats Dashboard**
-- Charts: category breakdown, read vs. unread, import timeline, top posts by popularity
-
 💡 **Feature Requests**
 - Submit feature requests directly from the nav bar using the 💡 Request button
 - Requests are committed to the GitHub repository's `TODO.md` automatically
@@ -260,11 +257,15 @@ AttachmentLens/
 ├── app.py                 # Flask application & all routes
 ├── requirements.txt       # Python dependencies
 ├── docker-compose.yml     # Docker configuration
-├── Dockerfile
-├── restart.bat            # Windows: rebuild & restart Docker container
-├── data/
-│   ├── posts.db          # SQLite database (created on first run)
-│   └── .secret_key       # Session secret key (persists across restarts)
+├── Dockerfile             # Container image definition
+├── posts.db              # SQLite database (created on first run)
+├── scripts/
+│   ├── rebuild-docker.bat # Windows: rebuild & restart Docker
+│   ├── start-docker.bat   # Start Docker container
+│   ├── stop-docker.bat    # Stop Docker container
+│   ├── logs-docker.bat    # View Docker logs
+│   ├── open-browser.bat   # Open app in browser
+│   └── DOCKER_QUICK_START.md # Docker quick start guide
 ├── static/
 │   └── images/
 │       └── logo.png      # App logo
@@ -277,7 +278,6 @@ AttachmentLens/
 │   ├── insights.html     # User highlights
 │   ├── ai_insights.html  # AI analysis interface
 │   ├── modeled_posts.html # AI post generator
-│   ├── stats.html        # Stats dashboard
 │   ├── bulk_label.html   # Admin: bulk re-label
 │   └── import.html       # Admin: import posts, GitHub integration, danger zone
 └── README.md
