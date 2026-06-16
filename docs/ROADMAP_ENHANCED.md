@@ -11,7 +11,7 @@
 - [x] **Like counts on post cards** — Both Latest 5 and Favorites show heart emoji + like count
 - [ ] **Post preview tooltips** — Hover over post title to see first 2-3 sentences
 - [ ] **Keyboard shortcuts** — `j`/`k` to navigate posts, `f` to favorite, `m` to mark read, `h` to highlight mode
-- [ ] **Infinite scroll on library** — Replace pagination with infinite scroll (load 50 at a time)
+- [x] **Infinite scroll on library** — Replace pagination with infinite scroll (load 50 at a time)
 - [ ] **Quick insights** — One-click "Generate Insight" button on any post (not just highlights)
 - [ ] **Post discovery tags** — Auto-generate related posts based on category + keywords
 - [ ] **Insight search bar** — Search insights by text, category, or date range
