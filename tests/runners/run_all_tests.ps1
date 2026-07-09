@@ -54,7 +54,7 @@ if (-not $NoApp) {
 }
 
 # Run comprehensive tests
-Write-Host "[1/3] Running comprehensive test suite (22 tests)..."
+Write-Host "[1/3] Running comprehensive test suite (21 tests)..."
 Write-Host "      Location: $ScriptDir\comprehensive_test.py"
 Write-Host ""
 

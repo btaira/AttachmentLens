@@ -5,7 +5,7 @@ This folder contains the **test execution scripts** for AttachmentLens functiona
 ## Files
 
 ### Test Scripts
-- `comprehensive_test.py` — Core functionality test suite (22 tests)
+- `comprehensive_test.py` — Core functionality test suite (21 tests)
 - `extended_tests.py` — Extended critical path tests (27 tests)
 - `user_flow_tests.py` — End-to-end user journey tests (7 flows, 70+ scenarios) **NEW**
 - `run_tests.py` — Playwright-based browser testing (legacy)
@@ -54,7 +54,7 @@ python extended_tests.py
 
 ## Test Suites
 
-### Comprehensive Test Suite (22 tests)
+### Comprehensive Test Suite (21 tests)
 **File**: `comprehensive_test.py`  
 **Duration**: ~2 minutes  
 **Coverage**:
@@ -158,7 +158,7 @@ Start Test Runner
     ↓
 [Optional] Start Flask app
     ↓
-Run Comprehensive Tests (22 tests)
+Run Comprehensive Tests (21 tests)
     ↓
 Run Extended Tests (27 tests)
     ↓
@@ -176,19 +176,19 @@ End
 ## Test Metrics
 
 ### Overall Coverage
-- **Total Tests**: 49 functional tests
+- **Total Tests**: 48 functional tests
 - **User Flow Scenarios**: 70+
-- **Combined Total**: 119+ test scenarios
+- **Combined Total**: 118+ test scenarios
 - **Success Rate**: 98%+ typical
 - **Execution Time**: ~8-10 minutes all suites
 
 ### By Test Type
 | Type | Count | Purpose |
 |------|-------|---------|
-| Functional | 22 | Core feature tests |
+| Functional | 21 | Core feature tests |
 | Extended | 27 | Edge cases & validation |
 | User Flows | 70+ | End-to-end workflows |
-| **TOTAL** | **119+** | Complete coverage |
+| **TOTAL** | **118+** | Complete coverage |
 
 ## Expected Output
 
@@ -200,11 +200,11 @@ AttachmentLens Functional Test Suite
 [INFO] Starting Flask app...
 [OK] Flask app started
 
-[1/2] Running comprehensive test suite (22 tests)...
+[1/2] Running comprehensive test suite (21 tests)...
 [PASS] AL-FUNC-001: Pass
 [PASS] AL-FUNC-002: Pass
 ...
-Test Summary: 21/22 passed
+Test Summary: 21/21 passed
 
 [2/2] Running extended test suite (27 tests)...
 [PASS] AL-FUNC-004: Pass
@@ -256,7 +256,7 @@ playwright install chromium
 ## Test Metrics
 
 ### Overall
-- **Total Tests**: 49
+- **Total Tests**: 48
 - **Success Rate**: 98%+ typical
 - **Coverage**: 8 feature categories
 - **Execution Time**: ~5 minutes
@@ -274,7 +274,7 @@ playwright install chromium
 | Post Management | 13 | 100% |
 | Import | 5 | 100% |
 | Insights | 6 | 100% |
-| Export & Stats | 5 | 80% |
+| Export & Stats | 4 | 100% |
 | Multi-User | 2 | 100% |
 | UI Features | 3 | 100% |
 

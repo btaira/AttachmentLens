@@ -8,7 +8,7 @@ This directory contains **functional test cases and test execution infrastructur
   - `FUNCTIONAL_TEST_CASES.md` — Canonical test cases by feature (definitions)
   - `TEST_RUN_TEMPLATE.md` — Template for documenting test results
 - `runners/` — Test execution scripts
-  - `comprehensive_test.py` — Core functionality test suite (22 tests)
+  - `comprehensive_test.py` — Core functionality test suite (21 tests)
   - `extended_tests.py` — Extended critical path tests (27 tests)
   - `run_tests.py` — Playwright-based browser testing
 
@@ -61,7 +61,7 @@ pip install requests playwright
 python app.py
 
 # In another terminal, run test suites
-python tests/runners/comprehensive_test.py    # Core functionality (22 tests)
+python tests/runners/comprehensive_test.py    # Core functionality (21 tests)
 python tests/runners/extended_tests.py        # Extended paths (27 tests)
 
 # Results saved to test_runs/ folder
@@ -69,7 +69,7 @@ python tests/runners/extended_tests.py        # Extended paths (27 tests)
 
 ## Test Coverage
 
-- **49 test cases** across 8 feature categories
+- **48 test cases** across 8 feature categories
 - **98%+ success rate** typical
 - Coverage includes:
   - Authentication & sessions

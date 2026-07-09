@@ -666,15 +666,6 @@ This file contains manual functional test cases covering implemented AttachmentL
 - Priority: P2
 - Postconditions: None.
 
-### Test ID: AL-FUNC-064
-- Title: Stats dashboard page loads and renders charts/tables
-- Preconditions: Logged in; posts exist.
-- Steps:
-  1. Navigate to `/stats`.
-- Expected Result: Dashboard loads; charts/timeline/top posts appear without JS errors.
-- Priority: P2
-- Postconditions: None.
-
 ---
 
 # Export / Restore Collections

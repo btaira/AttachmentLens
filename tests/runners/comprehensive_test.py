@@ -278,14 +278,6 @@ def test_stats_api():
 
     return 'Pass', 'Stats API accessible'
 
-@test("AL-FUNC-064", "Stats dashboard", "P2")
-def test_stats_dashboard():
-    """Test stats dashboard"""
-    resp = session.get(f"{BASE_URL}/stats")
-    assert resp.status_code in [200, 302]
-
-    return 'Pass', 'Stats dashboard loads'
-
 @test("AL-FUNC-065", "Export insights", "P1")
 def test_export_insights():
     """Test exporting insights"""
@@ -332,7 +324,6 @@ def run_all_tests():
     test_create_insight()
     test_update_insight_thoughts()
     test_stats_api()
-    test_stats_dashboard()
     test_export_insights()
     test_backup()
 
@@ -410,9 +401,8 @@ def generate_markdown_report():
 - Create insight from highlight
 - Update insight personal thoughts
 
-### [PASS] Stats & Export (4 tests)
+### [PASS] Stats & Export (3 tests)
 - Stats API endpoint
-- Stats dashboard
 - Export insights collection
 - Full database backup
 

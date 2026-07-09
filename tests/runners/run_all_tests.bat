@@ -19,7 +19,7 @@ echo ===========================================================================
 echo.
 echo This script will:
 echo   1. Start Flask app (if not running)
-echo   2. Run Comprehensive Tests (22 tests)
+echo   2. Run Comprehensive Tests (21 tests)
 echo   3. Run Extended Tests (27 tests)
 echo   4. Run User Flow Tests (70+ scenarios)
 echo   5. Generate final report
@@ -47,7 +47,7 @@ echo ===========================================================================
 echo.
 
 REM Test suite 1: Comprehensive
-echo [1/3] Running Comprehensive Test Suite (22 tests)...
+echo [1/3] Running Comprehensive Test Suite (21 tests)...
 echo       Location: tests\runners\comprehensive_test.py
 echo.
 

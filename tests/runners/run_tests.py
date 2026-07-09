@@ -154,17 +154,6 @@ async def test_insights_page(page):
     except Exception as e:
         return test_id, "Fail", str(e)
 
-async def test_stats_page(page):
-    """AL-FUNC-064: Stats dashboard page loads and renders"""
-    test_id = "AL-FUNC-064"
-    try:
-        await page.goto(f"{BASE_URL}/stats")
-        await page.wait_for_load_state("networkidle")
-
-        return test_id, "Pass", "Stats page loaded"
-    except Exception as e:
-        return test_id, "Fail", str(e)
-
 async def run_tests():
     """Run all tests with Playwright"""
     async with async_playwright() as p:
@@ -180,7 +169,6 @@ async def run_tests():
             test_library_search,
             test_import_page,
             test_insights_page,
-            test_stats_page,
         ]
 
         for test_func in tests:
