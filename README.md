@@ -29,7 +29,7 @@ This is a personal journaling and research tool inspired by attachment theory fr
 - Per-user favorites, insights, AI analyses, and modeled posts
 - User switcher dropdown in the top-right nav bar
 - Admin role for managing users, imports, and bulk-label
-- Sessions persist across app restarts (secret key stored in `./data/`)
+- Sessions persist across app restarts (secret key stored next to the database)
 
 🔍 **Smart Classification**
 - Automatic keyword-based categorization of posts into 6 attachment-related categories
@@ -129,7 +129,7 @@ cd AttachmentLens
 docker-compose up
 ```
 
-Visit `http://localhost:5000` — your database and session key persist in `./data/`.
+Visit `http://localhost:5000` — your database (`posts.db`) and session key (`.secret_key`) persist in the project root via a Docker volume mount.
 
 ### Local Installation (Python)
 
@@ -290,7 +290,7 @@ AttachmentLens/
 - Data stored **locally** in SQLite — no cloud, no telemetry
 - API keys stored in the database (plaintext) — keep your database file secure
 - Session-based authentication with per-user data isolation
-- Session secret key persisted in `./data/.secret_key` so logins survive container restarts
+- Session secret key persisted in `.secret_key` (next to the database) so logins survive container restarts
 - All routes require authentication; unauthenticated requests redirect to the login page
 
 For therapy/medical contexts, consult your therapist before using any AI tools.

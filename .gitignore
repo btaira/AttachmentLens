@@ -26,6 +26,8 @@ wheels/
 # Database
 posts.db
 *.db-journal
+posts-database.json
+data/
 
 # IDE & Editor
 .vscode/
@@ -64,6 +66,12 @@ data/.secret_key
 # Secret scanning
 .secrets.baseline
 .secrets.new
+
+# Ad-hoc debugging artifacts (screenshots/HTML dumps from manual debug sessions)
+debug_*.html
+*_debug.html
+*_debug.png
+*_ERROR.png
 
 # Node (if using Netlify)
 node_modules/
