@@ -50,6 +50,7 @@ This is a personal journaling and research tool inspired by attachment theory fr
 - Customizable AI prompt (default: attachment-aware therapist persona)
 - Analysis history with feedback tracking
 - Past reflections and current feelings feed into future analyses for contextual continuity
+- ✨ **Quick Summary** — one-click AI summary of any individual post, without saving it as an insight
 
 🎭 **Modeled Posts**
 - Generate new posts in Derek Hart's attachment style using AI
@@ -69,13 +70,13 @@ This is a personal journaling and research tool inspired by attachment theory fr
 💡 **Feature Requests**
 - Submit feature requests directly from the nav bar using the 💡 Request button
 - Requests are committed to the GitHub repository's `TODO.md` automatically
-- Requires a GitHub Personal Access Token with `repo` scope (configured in ⚙️ Admin → Import/Update Posts)
+- Requires a GitHub Personal Access Token with `repo` scope (configured in ⚙️ Admin → Import Posts)
 
 ⚙️ **Admin Tools** (in nav dropdown)
 - Import Posts — Facebook console scraper with copy-to-clipboard, auto-scroll, bulk import
 - Bulk Re-Label — table view with category dropdown, date column, date filter, sortable by date; select rows to bulk-apply a date to multiple posts at once
 - Backup & Restore — export full database to JSON; re-import to restore
-- GitHub Integration — connect your PAT to enable feature request commits
+- GitHub Integration — connect a PAT to enable feature request commits and 🚀 **Push to GitHub**, which exports all current posts as `posts-database.json` directly to the repo (a shareable "best" starting dataset)
 - Danger Zone — clear your personal insights, AI analysis history, or modeled posts
 
 🎨 **User Experience**
@@ -154,13 +155,13 @@ The app starts at `http://localhost:5000`.
 
 2. **Log in** — Visit `http://localhost:5000`; you'll be redirected to the login page. Default admin credentials: `admin` / `admin`
 
-3. **Import posts** — Open ⚙️ Admin → 📥 Import/Update Posts; follow the steps to run the Facebook console scraper and paste the JSON
+3. **Import posts** — Open ⚙️ Admin → 📥 Import Posts; follow the steps to run the Facebook console scraper and paste the JSON
 
 4. **Explore & annotate** — Browse posts, mark favorites, highlight passages
 
 5. (Optional) **Set up AI** — If not using environment variables, add your Anthropic API key on the 🧠 AI Insights page
 
-6. (Optional) **Set up GitHub integration** — If not using environment variables, add a GitHub PAT in ⚙️ Admin → Import/Update Posts to enable feature requests
+6. (Optional) **Set up GitHub integration** — If not using environment variables, add a GitHub PAT in ⚙️ Admin → Import Posts to enable feature requests
 
 ---
 
@@ -224,6 +225,9 @@ SQLite (`posts.db`) with these tables:
 
 All data is stored locally. Back up via ⚙️ Admin → 💾 Backup & Restore regularly.
 
+`posts.db` is intentionally committed to this git repo (it's this personal instance's actual
+data, not a generated artifact) — see `CLAUDE.md` for the rationale.
+
 ---
 
 ## Roadmap
@@ -255,31 +259,49 @@ All data is stored locally. Back up via ⚙️ Admin → 💾 Backup & Restore r
 ```
 AttachmentLens/
 ├── app.py                 # Flask application & all routes
+├── dev_server.py          # Alternative dev server (see file docstring for why)
 ├── requirements.txt       # Python dependencies
 ├── docker-compose.yml     # Docker configuration
 ├── Dockerfile             # Container image definition
-├── posts.db              # SQLite database (created on first run)
-├── scripts/
+├── Procfile               # Process entry point (Heroku-style platforms)
+├── render.yaml            # Render.com deployment config
+├── netlify.toml           # Netlify deployment config
+├── posts.db               # SQLite database (tracked in git; see Database section)
+├── CLAUDE.md              # Guidance for AI coding assistants working in this repo
+├── TODO.md                # Feature roadmap; feature requests are committed here
+├── docs/                  # Deployment/setup docs, published via GitHub Pages
+│   ├── DEPLOYMENT.md
+│   ├── DOCKER.md
+│   ├── GITHUB_PAGES.md
+│   ├── ROADMAP_ENHANCED.md
+│   ├── SETUP_SUMMARY.md
+│   └── STRATEGIC_VISION.md
+├── scripts/               # One-off setup/utility scripts
 │   ├── rebuild-docker.bat # Windows: rebuild & restart Docker
 │   ├── start-docker.bat   # Start Docker container
 │   ├── stop-docker.bat    # Stop Docker container
 │   ├── logs-docker.bat    # View Docker logs
 │   ├── open-browser.bat   # Open app in browser
-│   └── DOCKER_QUICK_START.md # Docker quick start guide
+│   ├── restart.bat / run.bat
+│   ├── push_to_github.bat
+│   ├── detect-secrets.bat # Secret-scanning check
+│   ├── export_to_json.py  # Local CLI export of posts.db to JSON
+│   └── DOCKER_QUICK_START.md
+├── tests/                 # Test case docs (functional/) and runners (runners/)
 ├── static/
 │   └── images/
-│       └── logo.png      # App logo
+│       └── logo.png       # App logo
 ├── templates/
-│   ├── base.html         # Base layout, nav, styles, feature request modal
-│   ├── login.html        # Login & register pages
-│   ├── index.html        # Home + All Posts library
-│   ├── post.html         # Post detail view
-│   ├── category.html     # Category filter view
-│   ├── insights.html     # User highlights
-│   ├── ai_insights.html  # AI analysis interface
+│   ├── base.html          # Base layout, nav, styles, feature request modal
+│   ├── login.html         # Login & register pages
+│   ├── index.html         # Home + All Posts library
+│   ├── post.html          # Post detail view
+│   ├── category.html      # Category filter view
+│   ├── insights.html      # User highlights
+│   ├── ai_insights.html   # AI analysis interface
 │   ├── modeled_posts.html # AI post generator
-│   ├── bulk_label.html   # Admin: bulk re-label
-│   └── import.html       # Admin: import posts, GitHub integration, danger zone
+│   ├── bulk_label.html    # Admin: bulk re-label
+│   └── import.html        # Admin: import posts, GitHub integration, danger zone
 └── README.md
 ```
 
