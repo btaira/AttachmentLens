@@ -24,6 +24,10 @@ try:
 except ImportError:
     _has_zipfile = False
 
+from dotenv import load_dotenv
+ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(ENV_FILE)
+
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
 
@@ -61,6 +65,32 @@ def _load_secret_key():
 
 
 app.secret_key = _load_secret_key()
+
+
+def _write_env_secret(key, value):
+    """Persist a secret to the local .env file (gitignored) — never the tracked DB."""
+    lines = []
+    if os.path.exists(ENV_FILE):
+        with open(ENV_FILE, 'r') as f:
+            lines = f.readlines()
+    for i, line in enumerate(lines):
+        if line.startswith(f'{key}='):
+            lines[i] = f'{key}={value}\n'
+            break
+    else:
+        lines.append(f'{key}={value}\n')
+    with open(ENV_FILE, 'w') as f:
+        f.writelines(lines)
+    os.environ[key] = value
+
+
+def _delete_env_secret(key):
+    if os.path.exists(ENV_FILE):
+        with open(ENV_FILE, 'r') as f:
+            lines = f.readlines()
+        with open(ENV_FILE, 'w') as f:
+            f.writelines(l for l in lines if not l.startswith(f'{key}='))
+    os.environ.pop(key, None)
 
 # ---------------------------------------------------------------------------
 # Attachment-style keyword classifier
@@ -298,18 +328,14 @@ def login_required(f):
     return decorated
 
 
+SECRET_ENV_KEYS = {'anthropic_api_key': 'ANTHROPIC_API_KEY', 'github_token': 'GITHUB_TOKEN'}
+
+
 def get_setting(key, default='', user_id=None):
     uid = user_id if user_id is not None else current_user_id()
-    # Check environment variables first (for secrets)
-    if key == 'anthropic_api_key':
-        env_val = os.getenv('ANTHROPIC_API_KEY')
-        if env_val:
-            return env_val
-    elif key == 'github_token':
-        env_val = os.getenv('GITHUB_TOKEN')
-        if env_val:
-            return env_val
-    # Fall back to database
+    # Secrets live only in the local .env file, never the git-tracked DB.
+    if key in SECRET_ENV_KEYS:
+        return os.getenv(SECRET_ENV_KEYS[key], default)
     with get_db() as conn:
         row = conn.execute('SELECT value FROM settings WHERE user_id = ? AND key = ?', (uid, key)).fetchone()
         if not row:
@@ -994,17 +1020,14 @@ def ai_insights_page():
 def save_api_key():
     key = (request.get_json(force=True) or {}).get('api_key', '').strip()
     if key:
-        set_setting('anthropic_api_key', key)
+        _write_env_secret('ANTHROPIC_API_KEY', key)
     return jsonify({'ok': True})
 
 
 @app.route('/ai-insights/delete-key', methods=['POST'])
 @login_required
 def delete_api_key():
-    uid = current_user_id()
-    with get_db() as conn:
-        conn.execute("DELETE FROM settings WHERE user_id = ? AND key = 'anthropic_api_key'", (uid,))
-        conn.commit()
+    _delete_env_secret('ANTHROPIC_API_KEY')
     return jsonify({'ok': True})
 
 
@@ -1776,16 +1799,14 @@ def modeled_post_delete(post_id):
 def save_github_token():
     token = (request.get_json(force=True) or {}).get('token', '').strip()
     if token:
-        set_setting('github_token', token, user_id=1)
+        _write_env_secret('GITHUB_TOKEN', token)
     return jsonify({'ok': True})
 
 
 @app.route('/settings/github-token/delete', methods=['POST'])
 @login_required
 def delete_github_token():
-    with get_db() as conn:
-        conn.execute("DELETE FROM settings WHERE user_id = 1 AND key = 'github_token'")
-        conn.commit()
+    _delete_env_secret('GITHUB_TOKEN')
     return jsonify({'ok': True})
 
 
