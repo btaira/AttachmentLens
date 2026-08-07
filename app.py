@@ -491,7 +491,13 @@ def index():
                     return datetime.strptime(dl.strip(), fmt)
                 except ValueError:
                     pass
-        return datetime(1970, 1, 1)
+        # No parseable date_label (e.g. scraper couldn't read a "Just now"-style
+        # timestamp) — fall back to when it was imported, so genuinely new posts
+        # still surface as "latest" instead of sinking to the epoch.
+        try:
+            return datetime.strptime(p['imported_at'], '%Y-%m-%d %H:%M:%S')
+        except (ValueError, TypeError):
+            return datetime(1970, 1, 1)
 
     latest = sorted(all_posts_for_latest, key=parse_post_date, reverse=True)[:5]
     favorites = sorted(all_favorites, key=parse_post_date, reverse=True)[:5]

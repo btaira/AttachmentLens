@@ -227,6 +227,9 @@
     const now = new Date();
     const s = rel.trim();
 
+    // "Just now" / "Now" — posts made within the last minute
+    if (/^(just\s*now|now)$/i.test(s)) return fmtDate(now);
+
     // "Xm" minutes ago
     let m = s.match(/^(\d+)\s*m$/i);
     if (m) return fmtDate(new Date(now - parseInt(m[1]) * 60000));
@@ -313,7 +316,7 @@
       let postUrl = '', dateLabel = '';
 
       // Pass 1: Find timestamp link by checking title/aria-label, then text content
-      const TS_PAT = /^(\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
+      const TS_PAT = /^(just\s*now|now|\d+\s*[smhdwy]|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
 
       // Try multiple scopes: artScope (5 levels), then wider scope (15 levels), then entire page
       let allLinks = [...artScope.querySelectorAll('a[href]')];
