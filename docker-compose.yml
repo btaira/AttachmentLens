@@ -8,4 +8,6 @@ services:
       - ./posts.db:/app/posts.db
     environment:
       - FLASK_ENV=production
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
     restart: unless-stopped
