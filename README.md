@@ -167,13 +167,44 @@ The app starts at `http://localhost:5000`.
 
 ## Importing Data
 
-### Facebook Scraper
+### Chrome Extension (recommended)
 
-The Import Posts page provides a console script you paste into your browser's developer tools while on Derek Hart's Facebook profile. It:
+`extension/` is an unpacked Chrome extension that replaces the console-paste
+workflow below with a popup click. It scrapes the same way the console
+script does, then sends the result straight to `/import_json` using your
+browser's existing AttachmentLens session — no DevTools, no copy/paste.
+
+**Install:**
+1. Go to `chrome://extensions`, enable **Developer mode** (top right).
+2. **Load unpacked** → select the `extension/` folder in this repo.
+3. Click the extension icon → **Options** → set **AttachmentLens URL**
+   (`http://localhost:5000` by default — change it if you're on a different
+   port, Docker host, or a deployed URL) and a default post count.
+
+**Use:**
+1. Log in to AttachmentLens in one tab; open the Facebook profile to scrape
+   in another.
+2. Click the extension icon on the Facebook tab, adjust the post count if
+   needed, click **Scrape Recent Posts**. Leave the tab open until it
+   finishes — large scrapes (100+ posts) take a few minutes since Facebook
+   needs time to load each scrolled batch.
+3. Click **Import to AttachmentLens** to send the results directly (first
+   time importing to a given URL, Chrome will prompt for permission to
+   reach it). **Copy JSON** is there as a fallback if you'd rather paste
+   into the Import page manually.
+
+If the popup gets closed mid-scrape, progress is checkpointed to
+`chrome.storage.local` — reopening it picks up where it left off (marked
+"interrupted" if the scrape didn't finish). See `extension/README.md` for
+more detail on how it works internally.
+
+### Facebook Scraper (console fallback)
+
+The Import Posts page also provides a console script you paste into your browser's developer tools while on Derek Hart's Facebook profile. It:
 
 - Auto-scrolls to collect posts up to your target count
 - Captures post text, date, URL, likes, and comment count
-- Resolves relative timestamps ("3h ago") to real dates
+- Resolves relative timestamps ("3h ago", "Just now") to real dates
 - Outputs JSON you paste back into the import form
 
 ### JSON Format
@@ -234,7 +265,7 @@ data, not a generated artifact) — see `CLAUDE.md` for the rationale.
 
 **High Priority**
 - [ ] Export to PDF — analyses and highlights formatted for therapy sessions
-- [ ] Browser extension scraper — replaces fragile console script; Facebook changed its DOM in May 2026 and no longer exposes date metadata for recent posts
+- [x] **Browser extension scraper** (Sept 2026) — `extension/` replaces the console script; scrapes and imports directly via `/import_json`, no DevTools paste needed
 
 **Medium Priority**
 - [ ] Date range filtering in the library

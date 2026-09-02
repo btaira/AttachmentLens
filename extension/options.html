@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>AttachmentLens Importer — Options</title>
+<style>
+  body {
+    max-width: 480px; margin: 40px auto; padding: 0 20px;
+    font: 14px/1.6 -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #14161a; color: #e8e8ea;
+  }
+  h1 { font-size: 18px; }
+  label { display: block; font-weight: 600; margin: 16px 0 6px; }
+  input {
+    width: 100%; box-sizing: border-box; padding: 8px 10px;
+    background: #1e2126; border: 1px solid #333740; border-radius: 6px;
+    color: #e8e8ea; font-size: 14px;
+  }
+  p.hint { color: #9aa0aa; font-size: 12px; margin: 4px 0 0; }
+  button {
+    margin-top: 20px; padding: 9px 18px; border: none; border-radius: 6px;
+    background: #4c8bf5; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  #saved { color: #6fcf97; font-size: 13px; margin-left: 10px; display: none; }
+</style>
+</head>
+<body>
+  <h1>AttachmentLens Importer</h1>
+
+  <label for="app-url">AttachmentLens URL</label>
+  <input id="app-url" type="text" placeholder="http://localhost:5000">
+  <p class="hint">Where your AttachmentLens app is running — the local dev server, Docker, or a deployed URL (e.g. Render). Must be logged in there in this browser for direct import to work.</p>
+
+  <label for="default-target">Default posts to scrape</label>
+  <input id="default-target" type="number" min="1" max="500" placeholder="20">
+
+  <button id="save-btn">Save</button>
+  <span id="saved">Saved.</span>
+
+  <script src="options.js"></script>
+</body>
+</html>

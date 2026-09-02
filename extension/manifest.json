@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "AttachmentLens Post Importer",
+  "version": "1.0.0",
+  "description": "Scrape recent Facebook posts and send them straight to AttachmentLens — no DevTools console needed.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["https://www.facebook.com/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"]
+}
