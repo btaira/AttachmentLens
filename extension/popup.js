@@ -5,12 +5,28 @@ const scrapeBtn = document.getElementById('scrape-btn');
 const importBtn = document.getElementById('import-btn');
 const copyBtn = document.getElementById('copy-btn');
 const optionsLink = document.getElementById('options-link');
+const fbLink = document.getElementById('fb-link');
+const appLink = document.getElementById('app-link');
+const importResultEl = document.getElementById('import-result');
 
 let posts = [];
 
 function setStatus(text, kind) {
   statusEl.textContent = text;
   statusEl.className = kind || '';
+}
+
+function setImportResult(text, kind) {
+  importResultEl.textContent = text;
+  importResultEl.className = kind || '';
+  importResultEl.style.display = text ? 'block' : 'none';
+}
+
+function setBadge(text, color) {
+  try {
+    chrome.action.setBadgeText({ text });
+    if (color) chrome.action.setBadgeBackgroundColor({ color });
+  } catch (e) {}
 }
 
 function scaledMaxStale(n) {
@@ -23,16 +39,19 @@ async function getActiveTab() {
 }
 
 async function getOptions() {
-  const { appUrl, defaultTarget } = await chrome.storage.sync.get(['appUrl', 'defaultTarget']);
+  const { appUrl, defaultTarget, facebookUrl } = await chrome.storage.sync.get(['appUrl', 'defaultTarget', 'facebookUrl']);
   return {
     appUrl: appUrl || 'http://localhost:5000',
     defaultTarget: defaultTarget || 20,
+    facebookUrl: facebookUrl || 'https://www.facebook.com/derek.michael.hart',
   };
 }
 
 (async function init() {
   const opts = await getOptions();
   targetInput.value = opts.defaultTarget;
+  fbLink.href = opts.facebookUrl;
+  appLink.href = opts.appUrl;
 
   const tab = await getActiveTab();
   const onFacebook = !!tab?.url && /^https:\/\/www\.facebook\.com\//.test(tab.url);
@@ -65,6 +84,8 @@ scrapeBtn.addEventListener('click', async () => {
   scrapeBtn.disabled = true;
   importBtn.disabled = true;
   copyBtn.disabled = true;
+  setImportResult('');
+  setBadge('');
   setStatus('Scraping… this can take a minute or two. Keep this tab open.');
 
   try {
@@ -121,7 +142,7 @@ importBtn.addEventListener('click', async () => {
   try {
     origin = new URL(base).origin + '/*';
   } catch (e) {
-    setStatus('Set a valid AttachmentLens URL in Options first.', 'error');
+    setImportResult('Set a valid AttachmentLens URL in Options first.', 'error');
     return;
   }
 
@@ -129,13 +150,14 @@ importBtn.addEventListener('click', async () => {
   if (!has) {
     const granted = await chrome.permissions.request({ origins: [origin] });
     if (!granted) {
-      setStatus('Permission denied — can\'t reach ' + base + '.', 'error');
+      setImportResult('Permission denied — can\'t reach ' + base + '.', 'error');
       return;
     }
   }
 
   importBtn.disabled = true;
-  setStatus('Importing to AttachmentLens…');
+  setImportResult('⏳ Importing to AttachmentLens…');
+  setBadge('…', '#9aa0aa');
   try {
     const resp = await fetch(base + '/import_json', {
       method: 'POST',
@@ -147,13 +169,15 @@ importBtn.addEventListener('click', async () => {
     if (!resp.ok || data.error) {
       throw new Error(data.error || `HTTP ${resp.status}`);
     }
-    let msg = `Imported ${data.imported} new posts`;
+    let msg = `✅ Imported ${data.imported} new posts`;
     if (data.updated) msg += `, updated ${data.updated}`;
     msg += `, ${data.skipped} skipped.`;
-    setStatus(msg, 'success');
+    setImportResult(msg, 'success');
+    setBadge('✓', '#2e7d52');
     await chrome.storage.local.remove(['attachmentLensScrapedPosts', 'attachmentLensScrapedAt', 'attachmentLensScrapeDone']);
   } catch (e) {
-    setStatus('Import failed: ' + e.message + ' — is ' + base + ' running and are you logged in?', 'error');
+    setImportResult('❌ Import failed: ' + e.message + ' — is ' + base + ' running and are you logged in?', 'error');
+    setBadge('!', '#c0392b');
     importBtn.disabled = false;
   }
 });

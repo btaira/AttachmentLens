@@ -37,10 +37,27 @@
   a { color: #7aa2f7; }
   .footer { text-align: center; margin-top: 4px; }
   .footer a { font-size: 11px; }
+  .links {
+    display: flex; flex-direction: column; gap: 4px;
+    margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #262a31;
+  }
+  .links a { font-size: 12px; text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  #import-result {
+    display: none; font-size: 13px; font-weight: 700; border-radius: 6px;
+    padding: 8px 10px; margin-bottom: 8px;
+  }
+  #import-result.success { background: rgba(111,207,151,.12); color: #6fcf97; }
+  #import-result.error { background: rgba(224,122,122,.12); color: #e07a7a; }
 </style>
 </head>
 <body>
   <h1>AttachmentLens Importer</h1>
+
+  <div class="links">
+    <a id="fb-link" href="#" target="_blank">📘 Open Facebook profile</a>
+    <a id="app-link" href="#" target="_blank">🔗 Open AttachmentLens</a>
+  </div>
 
   <div id="not-fb">Open a Facebook profile tab first — this only works on facebook.com.</div>
 
@@ -53,6 +70,7 @@
   <div id="status"></div>
 
   <button id="import-btn" class="secondary" disabled>Import to AttachmentLens</button>
+  <div id="import-result"></div>
   <button id="copy-btn" class="secondary" disabled>Copy JSON</button>
 
   <div class="footer"><a href="#" id="options-link">Options</a></div>
