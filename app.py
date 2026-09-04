@@ -118,6 +118,35 @@ def classify(text: str) -> str:
     return best if scores[best] > 0 else DEFAULT_CATEGORY
 
 
+def normalize_post_text(text):
+    """Lowercase, strip everything but letters/digits, collapse whitespace.
+    Used for near-duplicate detection across re-scrapes: catches curly-quote
+    encoding drift and whitespace differences that defeat an exact-text
+    match, without needing embeddings or a fuzzy-matching dependency."""
+    t = (text or '').lower()
+    t = re.sub(r'[^a-z0-9]+', ' ', t)
+    return t.strip()
+
+
+def find_near_duplicate_post(norm_text, existing_norm, prefix_len=120):
+    """Return the id of an existing post that's the same underlying content
+    as norm_text, or None. Matches on normalized-text equality, or a prefix
+    relationship — a Facebook re-scrape that failed to expand "See more"
+    captures only the opening of the post, so the shorter text is a true
+    prefix of the fuller one rather than an exact match."""
+    if len(norm_text) < 20:
+        return None
+    for pid, en in existing_norm:
+        if not en:
+            continue
+        if en == norm_text:
+            return pid
+        shorter, longer = (en, norm_text) if len(en) <= len(norm_text) else (norm_text, en)
+        if len(shorter) >= 20 and longer.startswith(shorter[:min(len(shorter), prefix_len)]):
+            return pid
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Database helpers
 # ---------------------------------------------------------------------------
@@ -553,6 +582,14 @@ def import_json():
     updated = 0
     skipped = 0
     with get_db() as conn:
+        # Preload for near-duplicate matching (catches whitespace/quote-encoding
+        # drift and truncated "See more" re-scrapes that defeat an exact-text
+        # match) — kept in sync as rows are inserted/updated below.
+        existing_norm = [
+            (row['id'], normalize_post_text(row['original_text']))
+            for row in conn.execute('SELECT id, original_text FROM posts').fetchall()
+        ]
+
         for item in data:
             text = (item.get('text') or '').strip()
             if not text or len(text) < 30:
@@ -560,18 +597,33 @@ def import_json():
                 continue
             likes = int(item.get('likes', 0))
             comments = int(item.get('comments', 0))
-            popularity = likes + comments
+
             existing = conn.execute(
-                'SELECT id, likes, comments FROM posts WHERE original_text = ?', (text,)
+                'SELECT id, likes, comments, popularity, original_text FROM posts WHERE original_text = ?', (text,)
             ).fetchone()
+            fuller_text = None
+            if not existing:
+                norm_text = normalize_post_text(text)
+                near_id = find_near_duplicate_post(norm_text, existing_norm)
+                if near_id:
+                    existing = conn.execute(
+                        'SELECT id, likes, comments, popularity, original_text FROM posts WHERE id = ?', (near_id,)
+                    ).fetchone()
+                    if len(text) > len(existing['original_text']):
+                        fuller_text = text
+
             if existing:
                 # Always update date_label and post_url if we have them now (may have been missing on first import)
                 # But respect locked dates (don't overwrite if already locked by any prior import or user)
                 date_label = item.get('date', '')
                 post_url = item.get('url', '')
-                if likes > 0 or comments > 0 or date_label or post_url:
+                merged_likes = max(likes, existing['likes'])
+                merged_comments = max(comments, existing['comments'])
+                if likes > 0 or comments > 0 or date_label or post_url or fuller_text:
                     conn.execute(
-                        '''UPDATE posts SET likes = ?, comments = ?, popularity = ?,
+                        '''UPDATE posts SET
+                           original_text = COALESCE(?, original_text),
+                           likes = ?, comments = ?, popularity = ?,
                            date_label = CASE WHEN date_label_locked = 1 THEN date_label
                                             WHEN ? != '' THEN ?
                                             ELSE date_label END,
@@ -580,12 +632,18 @@ def import_json():
                                                     ELSE date_label_locked END,
                            post_url   = CASE WHEN ? != '' THEN ? ELSE post_url   END
                            WHERE id = ?''',
-                        (likes, comments, popularity,
+                        (fuller_text,
+                         merged_likes, merged_comments, merged_likes + merged_comments,
                          date_label, date_label,
                          date_label,
                          post_url, post_url,
                          existing['id'])
                     )
+                    if fuller_text:
+                        for i, (pid, _) in enumerate(existing_norm):
+                            if pid == existing['id']:
+                                existing_norm[i] = (pid, normalize_post_text(fuller_text))
+                                break
                     updated += 1
                 else:
                     skipped += 1
@@ -593,10 +651,11 @@ def import_json():
             category = classify(text)
             date_label = item.get('date', '')
             # Auto-lock all imported dates (only manual edits will have locked=1 if date is empty, otherwise all imports are locked)
-            conn.execute(
+            cur = conn.execute(
                 'INSERT INTO posts (original_text, date_label, post_url, category, popularity, likes, comments, date_label_locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                (text, date_label, item.get('url', ''), category, popularity, likes, comments, 1 if date_label else 0)
+                (text, date_label, item.get('url', ''), category, likes + comments, likes, comments, 1 if date_label else 0)
             )
+            existing_norm.append((cur.lastrowid, normalize_post_text(text)))
             imported += 1
         conn.commit()
     return jsonify({'imported': imported, 'updated': updated, 'skipped': skipped})
