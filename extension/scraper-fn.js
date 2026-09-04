@@ -7,6 +7,15 @@
 async function scrapeFacebookPosts(TARGET, SCROLL_WAIT, MAX_STALE) {
   let collected = [], seen = new Set(), staleRounds = 0;
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  const diag = {
+    url: location.href,
+    readyState: document.readyState,
+    commentPreviewCount: 0,
+    adPreviewCount: 0,
+    articleRoleCount: 0,
+    bodiesFoundLastRound: 0,
+    rounds: 0,
+  };
 
   const report = (partial) => {
     try {
@@ -96,6 +105,10 @@ async function scrapeFacebookPosts(TARGET, SCROLL_WAIT, MAX_STALE) {
   }
 
   function getPostBodies() {
+    diag.commentPreviewCount = document.querySelectorAll('[data-ad-comet-preview="message"]').length;
+    diag.adPreviewCount = document.querySelectorAll('[data-ad-preview="message"]').length;
+    diag.articleRoleCount = document.querySelectorAll('[role="article"]').length;
+
     let nodes = [...document.querySelectorAll('[data-ad-comet-preview="message"]')]
       .filter(n => !n.parentElement?.closest('[data-ad-comet-preview="message"]'));
     if (nodes.length === 0)
@@ -106,6 +119,7 @@ async function scrapeFacebookPosts(TARGET, SCROLL_WAIT, MAX_STALE) {
         .map(art => art.querySelector('[dir="auto"]'))
         .filter(Boolean);
     }
+    diag.bodiesFoundLastRound = nodes.length;
     return nodes;
   }
 
@@ -255,7 +269,7 @@ async function scrapeFacebookPosts(TARGET, SCROLL_WAIT, MAX_STALE) {
       if (!postUrl) {
         for (const a of artScope.querySelectorAll('a[href]')) {
           const h = a.href || '';
-          if (h && !h.includes(location.pathname.split('/')[1] || ' ') && h.startsWith('https://www.facebook.com')) {
+          if (h && !h.includes(location.pathname.split('/')[1] || ' ') && h.startsWith('https://www.facebook.com')) {
             postUrl = h; break;
           }
         }
@@ -330,6 +344,7 @@ async function scrapeFacebookPosts(TARGET, SCROLL_WAIT, MAX_STALE) {
   }
 
   for (let round = 0; collected.length < TARGET; round++) {
+    diag.rounds = round + 1;
     await expandSeeMore();
     const prev = collected.length;
     await harvest(); await wait(1000); await harvest();
@@ -351,5 +366,5 @@ async function scrapeFacebookPosts(TARGET, SCROLL_WAIT, MAX_STALE) {
     });
   } catch (e) {}
 
-  return collected;
+  return { posts: collected, diag };
 }

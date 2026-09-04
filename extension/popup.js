@@ -79,9 +79,20 @@ scrapeBtn.addEventListener('click', async () => {
       args: [target, 7000, maxStale],
     });
 
-    posts = result || [];
+    const diag = result?.diag;
+    posts = result?.posts || [];
     if (!posts.length) {
-      setStatus('No posts found — make sure the profile feed is visible and try again.', 'error');
+      let msg = 'No posts found.';
+      if (diag) {
+        msg += ` Checked ${diag.rounds} scroll round(s); DOM matches — comment-preview: ${diag.commentPreviewCount}, ad-preview: ${diag.adPreviewCount}, role=article: ${diag.articleRoleCount}.`;
+        if (diag.commentPreviewCount === 0 && diag.adPreviewCount === 0 && diag.articleRoleCount === 0) {
+          msg += ' Facebook may not have finished loading the feed — wait a moment and try again.';
+        } else {
+          msg += ' Facebook\'s post markup may have changed — this needs an update to the scraper selectors.';
+        }
+      }
+      console.log('AttachmentLens scrape diagnostics:', diag);
+      setStatus(msg, 'error');
     } else {
       setStatus(`Done — ${posts.length} posts scraped.`, 'success');
       importBtn.disabled = false;
