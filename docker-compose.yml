@@ -6,6 +6,7 @@ services:
       - "5000:5000"
     volumes:
       - ./posts.db:/app/posts.db
+      - ./.secret_key:/app/.secret_key
     environment:
       - FLASK_ENV=production
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
