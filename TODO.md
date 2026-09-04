@@ -139,7 +139,7 @@
 - [x] Responsive design (desktop/tablet)
 
 ### Organization & Tracking
-- [x] Latest 5 posts sorted by date (not import order)
+- [x] Latest 5 posts sorted by import order (Sept 2026) — shows what you just scraped, even if its Facebook date is older than other stored posts
 - [x] Latest 5 favorites displayed in grid (newest left)
 - [x] Like counts on post cards
 - [x] Like/comment metrics captured and sortable

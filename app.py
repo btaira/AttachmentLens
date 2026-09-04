@@ -528,7 +528,13 @@ def index():
         except (ValueError, TypeError):
             return datetime(1970, 1, 1)
 
-    latest = sorted(all_posts_for_latest, key=parse_post_date, reverse=True)[:5]
+    # "Latest 5" means "what did I just scrape" — sort by import recency, not
+    # the post's own Facebook date, so a freshly-imported older post (e.g. a
+    # backlog scrape) still shows up here instead of losing to already-stored
+    # posts with newer Facebook dates. all_posts_for_latest is already
+    # `ORDER BY p.id DESC`, and id order matches insertion order 1:1, so this
+    # is already sorted by import recency — just take the first 5.
+    latest = all_posts_for_latest[:5]
     favorites = sorted(all_favorites, key=parse_post_date, reverse=True)[:5]
 
     return render_template(
