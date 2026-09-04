@@ -279,9 +279,27 @@ async function scrapeFacebookPosts(TARGET, SCROLL_WAIT, MAX_STALE) {
       if (seen.has(key)) continue;
       seen.add(key);
 
+      // Facebook keeps the collapsed-preview text in the DOM (hidden) after
+      // "See more" expands the full text, so [dir="auto"] often yields BOTH
+      // renders of the same post back to back — plus the "See more"/"See
+      // less" toggle label itself as its own paragraph. Drop toggle labels
+      // outright, and drop any paragraph whose text already appeared earlier
+      // in this post (longer ones only, so short repeated-for-emphasis
+      // lines like "Breathe." aren't mistaken for the same bug).
       const paras = [...body.querySelectorAll('[dir="auto"]')]
         .map(el => el.innerText?.trimEnd() ?? '');
-      const deduped = paras.filter((t, i) => t !== paras[i - 1] || t === '');
+      const seenParas = new Set();
+      const deduped = [];
+      for (let i = 0; i < paras.length; i++) {
+        const t = paras[i];
+        if (t === '') { deduped.push(t); continue; }
+        if (t === paras[i - 1]) continue; // original adjacent-duplicate check
+        if (/^see (more|less)$/i.test(t.trim())) continue;
+        const key = t.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (t.length > 25 && seenParas.has(key)) continue;
+        if (t.length > 25) seenParas.add(key);
+        deduped.push(t);
+      }
       const text = deduped.join('\n\n').replace(/(\n\n){3,}/g, '\n\n\n').trim();
       if (!text || text.length < 30) continue;
 

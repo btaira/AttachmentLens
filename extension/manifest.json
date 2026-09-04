@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AttachmentLens Post Importer",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Scrape recent Facebook posts and send them straight to AttachmentLens — no DevTools console needed.",
   "action": {
     "default_popup": "popup.html"
