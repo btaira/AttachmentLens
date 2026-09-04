@@ -114,6 +114,8 @@
 
 ### Core Functionality
 - [x] Import posts via Facebook console scraper
+- [x] Chrome extension scraper (Sept 2026) — `extension/` replaces the console-paste flow with a one-click popup; scrapes and imports directly via `/import_json`
+- [x] Near-duplicate detection on import (Sept 2026) — catches whitespace/quote-encoding drift and truncated "See more" re-scrapes that defeat an exact-text match, updating the existing post instead of creating a duplicate
 - [x] Attachment style auto-classifier (keyword-based)
 - [x] Post detail with edit/personalize/word diff
 - [x] Highlight text and save as insights
@@ -184,8 +186,6 @@
 
 ## 📌 Backlog Notes
 
-- **Browser Extension Scraper:** Facebook DOM changes in May 2026 broke timestamp extraction; browser extension can intercept network requests for reliable dates
-- **Duplicate Detection:** Flag near-duplicates before import (same text, different formatting)
 - **Comment Count Accuracy:** High-engagement posts collapse counts; investigate full count via post URL
 - **Semantic Search:** Embed posts with small model; search by meaning not keywords
 - **Therapist Export Pack:** Multi-format (PDF, Markdown, JSON) with structured templates
