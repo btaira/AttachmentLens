@@ -296,6 +296,10 @@
         <div style="padding:32px;text-align:center;color:var(--text)">No posts found.</div>
         {% endif %}
       </div>
+      {% if library %}
+      <div id="lib-status" style="text-align:center;padding:14px 0;font-size:12px;color:var(--muted)"></div>
+      <div id="lib-sentinel" style="height:1px"></div>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -337,25 +341,85 @@ function sortTable(by) {
   });
   rows.forEach(r => tbody.appendChild(r));
   localStorage.setItem('libSort', by);
+  resetReveal(); // order changed — "first 50" means something different now
 }
 
-// Restore saved sort preference
+let currentReadFilter = 'all';
+
+function filterRead(filter, chipEl) {
+  document.querySelectorAll('.rf-chip').forEach(c => c.classList.remove('active'));
+  chipEl.classList.add('active');
+  currentReadFilter = filter;
+  const rows = document.querySelectorAll('#library-tbody tr');
+  rows.forEach(row => {
+    const passes = filter === 'all' || (filter === 'read' ? row.dataset.read === '1' : row.dataset.read === '0');
+    row.classList.toggle('lib-filtered-out', !passes);
+  });
+  resetReveal(); // filtered-in set changed — "first 50" means something different now
+}
+
+// ── Infinite scroll: load 50 rows at a time ──────────────────────────
+// Declared before "restore saved sort preference" below, since that can
+// call sortTable() -> resetReveal() immediately on page load.
+const LIB_BATCH_SIZE = 50;
+
+function libRows() {
+  const tbody = document.getElementById('library-tbody');
+  return tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+}
+
+function applyLibVisibility() {
+  libRows().forEach(row => {
+    const hidden = row.classList.contains('lib-filtered-out') || row.classList.contains('lib-pending');
+    row.style.display = hidden ? 'none' : '';
+  });
+  updateLibStatus();
+}
+
+function updateLibStatus() {
+  const statusEl = document.getElementById('lib-status');
+  if (!statusEl) return;
+  const rows = libRows();
+  const passing = rows.filter(r => !r.classList.contains('lib-filtered-out'));
+  const shown = passing.filter(r => !r.classList.contains('lib-pending')).length;
+  statusEl.textContent = shown < passing.length
+    ? `Showing ${shown} of ${passing.length} posts — scroll for more`
+    : passing.length ? `Showing all ${passing.length} posts` : '';
+}
+
+// Re-batch from scratch: current sort/filter order determines the new "first 50"
+function resetReveal() {
+  let count = 0;
+  libRows().forEach(row => {
+    if (row.classList.contains('lib-filtered-out')) return;
+    count++;
+    row.classList.toggle('lib-pending', count > LIB_BATCH_SIZE);
+  });
+  applyLibVisibility();
+}
+
+function revealMoreLibRows() {
+  const pending = libRows().filter(r => !r.classList.contains('lib-filtered-out') && r.classList.contains('lib-pending'));
+  pending.slice(0, LIB_BATCH_SIZE).forEach(r => r.classList.remove('lib-pending'));
+  applyLibVisibility();
+}
+
+// Restore saved sort preference (safe here — resetReveal/LIB_BATCH_SIZE above are already defined)
 (function() {
   const saved = localStorage.getItem('libSort');
   const sel = document.getElementById('sort-select');
   if (saved && sel) { sel.value = saved; sortTable(saved); }
 })();
 
-function filterRead(filter, chipEl) {
-  document.querySelectorAll('.rf-chip').forEach(c => c.classList.remove('active'));
-  chipEl.classList.add('active');
-  const rows = document.querySelectorAll('#library-tbody tr');
-  rows.forEach(row => {
-    if (filter === 'all') row.style.display = '';
-    else if (filter === 'read') row.style.display = row.dataset.read === '1' ? '' : 'none';
-    else row.style.display = row.dataset.read === '0' ? '' : 'none';
-  });
-}
+(function initLibInfiniteScroll() {
+  const sentinel = document.getElementById('lib-sentinel');
+  if (!sentinel) return;
+  resetReveal();
+  const observer = new IntersectionObserver(entries => {
+    if (entries.some(e => e.isIntersecting)) revealMoreLibRows();
+  }, { rootMargin: '400px' });
+  observer.observe(sentinel);
+})();
 
 async function quickSummary(postId, btn) {
   const originalText = btn.textContent;
