@@ -670,13 +670,20 @@ function highlightTextNodes(root, phrases) {
       span.title = 'Saved insight';
       span.textContent = match;
       const parent = tn.parentNode;
+      const beforeNode = document.createTextNode(before);
       const afterNode = document.createTextNode(after);
-      parent.insertBefore(document.createTextNode(before), tn);
+      parent.insertBefore(beforeNode, tn);
       parent.insertBefore(span, tn);
       parent.insertBefore(afterNode, tn);
       parent.removeChild(tn);
-      // Update textNodes array: replace tn with afterNode for further matches in same text
-      textNodes.splice(i, 1, afterNode);
+      // Keep BOTH remaining fragments searchable — otherwise a later phrase
+      // whose text falls before this match (in the same original text node)
+      // becomes permanently unfindable, since phrases are processed longest-
+      // first rather than in document order.
+      const replacement = [];
+      if (before) replacement.push(beforeNode);
+      if (after) replacement.push(afterNode);
+      textNodes.splice(i, 1, ...replacement);
       i--; // re-check this position in case multiple phrases match
       break; // one match per phrase per pass is enough
     }
