@@ -8,7 +8,6 @@
 
 - [ ] **Keyboard shortcuts** — `j`/`k` navigate posts, `f` favorite, `m` mark read, `h` highlight mode
 - [ ] **Post preview tooltips** — Hover over post title to see first 2-3 sentences
-- [ ] **Infinite scroll on library** — Load 50 posts at a time (replace pagination)
 - [ ] **Color-coded highlights** — Different colors per category (anxious→red, avoidant→blue, secure→green)
 - [ ] **Quick Insight button** — One-click "Generate Insight" on any post card
 - [ ] **Single post PDF export** — Download any post as PDF with annotations
@@ -127,6 +126,7 @@
 - [x] Multi-tag support per post
 - [x] Bulk re-label tool (category + date assignment)
 - [x] Full-text search across library
+- [x] Infinite scroll on library (Sept 2026) — loads 50 posts at a time, composes with existing sort/filter
 
 ### User Experience
 - [x] Multi-user support with login/register
