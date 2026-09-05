@@ -61,23 +61,25 @@
   .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
   .section-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 10px; }
 
-  /* Saved highlight marks */
+  /* Saved highlight marks — colored by the post's attachment-style category
+     (anxious/avoidant/fearful/secure/healing/general), via --hl-color set
+     on .post-container from the post's own category. */
   .saved-highlight {
-    color: #c8a200;
+    color: var(--hl-color, #c8a200);
     background: none;
     border-bottom: none;
     border-radius: 0;
     padding: 0;
     cursor: default;
     position: relative;
-    text-shadow: 0 0 8px rgba(200,162,0,.45);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--hl-color, #c8a200) 45%, transparent);
   }
   .saved-highlight:hover::after {
     content: '✨ Saved insight';
     position: absolute;
     background: var(--surface2);
-    border: 1px solid #c8a200;
-    color: #c8a200;
+    border: 1px solid var(--hl-color, #c8a200);
+    color: var(--hl-color, #c8a200);
     font-size: 11px;
     padding: 3px 8px;
     border-radius: 6px;
@@ -215,12 +217,12 @@
 <!-- Floating Save to Insights button (appears on text selection) -->
 <button id="insight-float-btn" onclick="saveInsight()">✨ Save to Insights</button>
 
-<div class="post-container">
+{% set cat_key = post.category.split('/')[0].strip().split(' ')[0] %}
+<div class="post-container" style="--hl-color: var(--{{ cat_key|lower }}, #c8a200)">
   <a href="/" class="back-link" style="color:var(--muted);font-size:13px">← Back to Library</a>
 
   <div class="post-header" style="justify-content:space-between">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      {% set cat_key = post.category.split('/')[0].strip().split(' ')[0] %}
       <span class="cat-badge cat-{{ cat_key }}">{{ post.category }}</span>
       {% if post.is_revised %}
       <span class="revised-badge" id="personalized-badge">✏ Personalized</span>

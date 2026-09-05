@@ -28,10 +28,10 @@
   .ins-delete:hover { color: var(--anxious); }
 
   .highlighted-quote {
-    border-left: 3px solid var(--accent2);
+    border-left: 3px solid var(--hl-color, var(--accent2));
     padding: 10px 16px;
     margin: 0 0 16px;
-    background: rgba(93,217,196,.07);
+    background: color-mix(in srgb, var(--hl-color, var(--accent2)) 7%, transparent);
     border-radius: 0 6px 6px 0;
     font-size: 15px; line-height: 1.7; color: var(--text);
     white-space: pre-wrap; word-break: break-word;
@@ -79,10 +79,10 @@
   {% endif %}
 
   {% for ins in insights %}
+  {% set ck = ins.category.split('/')[0].strip().split(' ')[0] if ins.category else 'General' %}
   <div class="insight-card" id="ins-{{ ins.id }}">
     <div class="ins-meta">
       {% if ins.category %}
-        {% set ck = ins.category.split('/')[0].strip().split(' ')[0] %}
         <span class="cat-badge cat-{{ ck }}">{{ ins.category }}</span>
       {% endif %}
       <span class="ins-date">{{ ins.created_at[:10] if ins.created_at }}</span>
@@ -95,7 +95,7 @@
       <button class="ins-delete" onclick="deleteInsight({{ ins.id }})" title="Remove insight">🗑</button>
     </div>
 
-    <blockquote class="highlighted-quote">{{ ins.highlighted_text }}</blockquote>
+    <blockquote class="highlighted-quote" style="--hl-color: var(--{{ ck|lower }}, var(--accent2))">{{ ins.highlighted_text }}</blockquote>
 
     <div class="thoughts-label">My Thoughts &amp; Feelings</div>
     <textarea class="thoughts-area" id="thoughts-{{ ins.id }}"

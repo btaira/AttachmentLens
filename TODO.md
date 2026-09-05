@@ -8,7 +8,6 @@
 
 - [ ] **Keyboard shortcuts** — `j`/`k` navigate posts, `f` favorite, `m` mark read, `h` highlight mode
 - [ ] **Post preview tooltips** — Hover over post title to see first 2-3 sentences
-- [ ] **Color-coded highlights** — Different colors per category (anxious→red, avoidant→blue, secure→green)
 - [ ] **Single post PDF export** — Download any post as PDF with annotations
 
 ---
@@ -168,7 +167,7 @@
 
 ### UI Refinements
 - [x] Floating "Save to Insights" button on text selection
-- [x] Golden highlight (#c8a200) for saved insights
+- [x] Color-coded highlights by attachment-style category (Sept 2026) — reuses the existing category badge colors (anxious→red, avoidant→blue, fearful→purple, secure→green, healing→gold, general→gray) for saved-insight marks on the post page and quote blocks on the Insights page; gold (#c8a200) remains the fallback
 - [x] Category badges with attachment style colors
 - [x] "Read" / "Unread" status badges
 - [x] Revised/personalized post badge
