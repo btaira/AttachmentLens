@@ -175,6 +175,14 @@ importBtn.addEventListener('click', async () => {
     setImportResult(msg, 'success');
     setBadge('✓', '#2e7d52');
     await chrome.storage.local.remove(['attachmentLensScrapedPosts', 'attachmentLensScrapedAt', 'attachmentLensScrapeDone']);
+
+    // Reload any open AttachmentLens tabs so the new posts show up without
+    // a manual refresh (a tab opened before the import shows a stale
+    // server-rendered snapshot otherwise).
+    try {
+      const tabs = await chrome.tabs.query({ url: origin });
+      await Promise.all(tabs.filter(t => t.id != null).map(t => chrome.tabs.reload(t.id)));
+    } catch (e) {}
   } catch (e) {
     setImportResult('❌ Import failed: ' + e.message + ' — is ' + base + ' running and are you logged in?', 'error');
     setBadge('!', '#c0392b');

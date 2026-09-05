@@ -25,7 +25,9 @@ a Facebook profile tab, then **Import to AttachmentLens**.
 3. Click **Import to AttachmentLens** to send the results straight to the
    app's `/import_json` endpoint (same dedupe/update logic as the manual
    paste flow). First time importing to a given URL, Chrome will ask you to
-   grant the extension permission to reach it.
+   grant the extension permission to reach it. On success, any open
+   AttachmentLens tab is automatically reloaded so the new posts show up
+   without a manual refresh.
 4. **Copy JSON** is there as a fallback if you'd rather paste into the
    Import page manually (e.g. the app isn't reachable from this browser).
 
