@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 import sqlite3
 import json
 import re
+import difflib
 import os
 import hashlib
 import secrets
@@ -145,6 +146,41 @@ def find_near_duplicate_post(norm_text, existing_norm, prefix_len=120):
         if len(shorter) >= 20 and longer.startswith(shorter[:min(len(shorter), prefix_len)]):
             return pid
     return None
+
+
+def clean_scraped_text(text):
+    """Undo the Facebook scraper artifact where a post's collapsed-preview
+    text and its fully-expanded text both end up in the scrape, joined by a
+    leftover "See more"/"See less" toggle label (or, occasionally, with no
+    marker at all) — producing text containing the entire post twice.
+    Applied server-side to every incoming scrape so a stale/un-reloaded
+    extension can't reintroduce this, and so the near-duplicate "adopt the
+    longer text" update path (below) never mistakes a duplicated blob for
+    a fuller, better version of an already-clean post."""
+    if not text:
+        return text
+
+    m = re.search(r'\s*See (more|less)\s*', text, re.IGNORECASE)
+    if m:
+        before = text[:m.start()]
+        after = re.sub(r'\s*See (more|less)\s*$', '', text[m.end():], flags=re.IGNORECASE).rstrip()
+        nb, na = normalize_post_text(before), normalize_post_text(after)
+        if nb and na and difflib.SequenceMatcher(None, nb[:500], na[:500]).ratio() > 0.85:
+            return after  # confirmed duplicate -> keep the fuller, properly-spaced half
+        cleaned = re.sub(r'\s*See (more|less)\s*$', '', text, flags=re.IGNORECASE).rstrip()
+        return cleaned if cleaned else text
+
+    # Marker-less duplication: the post's own opening text repeats partway through
+    n = normalize_post_text(text)
+    if len(n) >= 200:
+        mid = len(n) // 2
+        ratio = difflib.SequenceMatcher(None, n[:mid][:800], n[mid:][:800]).ratio()
+        if ratio > 0.6:
+            needle = text[:40]
+            idx2 = text.find(needle, 10)
+            if idx2 != -1:
+                return text[idx2:].strip()
+    return text
 
 
 # ---------------------------------------------------------------------------
@@ -598,6 +634,7 @@ def import_json():
 
         for item in data:
             text = (item.get('text') or '').strip()
+            text = clean_scraped_text(text)
             if not text or len(text) < 30:
                 skipped += 1
                 continue
