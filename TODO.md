@@ -126,7 +126,7 @@
 - [x] Bulk re-label tool (category + date assignment)
 - [x] Full-text search across library
 - [x] Infinite scroll on library (Sept 2026) — loads 50 posts at a time, composes with existing sort/filter
-- [x] Quick Insight button (Sept 2026) — one-click generate + save an AI insight from any post card, alongside the existing Quick Summary (which still shows a review panel before saving)
+- [x] Quick Summary shown inline on its post card (Sept 2026) — reads as part of the card, with Save to Insights available inline; clicking the card still opens the post
 
 ### User Experience
 - [x] Multi-user support with login/register
