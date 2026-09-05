@@ -126,6 +126,7 @@
       {% if p.likes %}<div style="margin-top:8px;font-size:12px;color:var(--avoidant)">❤ {{ p.likes }} like{{ 's' if p.likes != 1 }}</div>{% endif %}
       <div style="margin-top:10px;display:flex;gap:6px">
         <button class="btn btn-secondary" onclick="event.preventDefault();quickSummary({{ p.id }}, this)" title="Generate AI summary of this post" style="flex:1;padding:6px 10px;font-size:12px">✨ Quick Summary</button>
+        <button class="btn btn-secondary" onclick="event.preventDefault();quickInsight({{ p.id }}, this)" title="Generate an insight and save it in one click" style="flex:1;padding:6px 10px;font-size:12px">⚡ Quick Insight</button>
       </div>
       <button class="fav-btn" onclick="event.preventDefault();toggleFav({{ p.id }}, this)" title="Remove favorite" style="position:absolute;top:10px;right:10px">⭐</button>
     </a>
@@ -154,7 +155,10 @@
       <div class="first-sentence">{{ first_sentence(p.original_text) }}</div>
       <div class="excerpt">{{ p.original_text[first_sentence(p.original_text)|length:] }}</div>
       {% if p.likes %}<div style="margin-top:8px;font-size:12px;color:var(--avoidant)">❤ {{ p.likes }} like{{ 's' if p.likes != 1 }}</div>{% endif %}
-      <div style="margin-top:10px"><button class="btn btn-secondary" onclick="event.preventDefault();quickSummary({{ p.id }}, this)" title="Generate AI summary of this post" style="width:100%;padding:6px 10px;font-size:12px">✨ Quick Summary</button></div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn btn-secondary" onclick="event.preventDefault();quickSummary({{ p.id }}, this)" title="Generate AI summary of this post" style="flex:1;padding:6px 10px;font-size:12px">✨ Quick Summary</button>
+        <button class="btn btn-secondary" onclick="event.preventDefault();quickInsight({{ p.id }}, this)" title="Generate an insight and save it in one click" style="flex:1;padding:6px 10px;font-size:12px">⚡ Quick Insight</button>
+      </div>
     </a>
     {% endfor %}
   </div>
@@ -448,6 +452,34 @@ async function quickSummary(postId, btn) {
       btn.disabled = false;
     }, 2000);
   }
+}
+
+async function quickInsight(postId, btn) {
+  const originalText = btn.textContent;
+  btn.textContent = 'Generating...';
+  btn.disabled = true;
+
+  try {
+    const genResp = await fetch('/quick-summary/' + postId, { method: 'POST' });
+    const genData = await genResp.json();
+    if (!genData.ok || !genData.summary) {
+      throw new Error(genData.error || 'Failed to generate insight');
+    }
+    const saveResp = await fetch('/save-summary/' + postId, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ summary: genData.summary }),
+    });
+    const saveData = await saveResp.json();
+    if (!saveData.ok) throw new Error(saveData.error || 'Failed to save insight');
+    btn.textContent = '✓ Saved!';
+  } catch (e) {
+    btn.textContent = 'Failed';
+  }
+  setTimeout(() => {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }, 2000);
 }
 
 function showSummaryPanel(postId, summary) {
